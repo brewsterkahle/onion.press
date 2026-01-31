@@ -48,8 +48,6 @@ class OnionPressApp(rumps.App):
             rumps.MenuItem("Restart", callback=self.restart_service),
             rumps.separator,
             rumps.MenuItem("View Logs", callback=self.view_logs),
-            rumps.separator,
-            rumps.MenuItem("Quit", callback=self.quit_app),
         ]
 
         # Ensure Docker is available
@@ -268,9 +266,8 @@ class OnionPressApp(rumps.App):
         else:
             rumps.alert("No logs available yet")
 
-    @rumps.clicked("Quit")
-    def quit_app(self, _):
-        """Quit the application"""
+    def quit_callback(self, _):
+        """Called when user selects Quit from the menu (overrides default rumps quit)"""
         response = rumps.alert(
             title="Quit onion.press?",
             message="This will stop the WordPress service. Are you sure?",
