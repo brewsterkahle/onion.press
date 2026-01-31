@@ -31,6 +31,7 @@ TEMP_BIN_DIR=$(mktemp -d)
 COLIMA_VERSION="v0.8.1"
 LIMA_VERSION="2.0.3"
 DOCKER_VERSION="27.5.1"
+MKP224O_VERSION="master"  # Using master for latest version
 
 # Download Colima for both architectures
 echo "  Downloading Colima binaries..."
@@ -93,6 +94,33 @@ lipo -create \
   "$TEMP_BIN_DIR/docker-arm64/docker/docker" \
   -output "$TEMP_BIN_DIR/docker"
 
+# Build mkp224o for vanity onion addresses
+echo "  Building mkp224o for vanity onion addresses..."
+if command -v git >/dev/null 2>&1; then
+    # Clone mkp224o
+    git clone https://github.com/cathugger/mkp224o.git "$TEMP_BIN_DIR/mkp224o-src" 2>/dev/null || true
+    cd "$TEMP_BIN_DIR/mkp224o-src"
+
+    # Check for required dependencies
+    if command -v brew >/dev/null 2>&1; then
+        # Ensure libsodium is installed
+        brew list libsodium >/dev/null 2>&1 || brew install libsodium
+        brew list autoconf >/dev/null 2>&1 || brew install autoconf
+        brew list automake >/dev/null 2>&1 || brew install automake
+    fi
+
+    # Build mkp224o (use ref10 for ARM64 compatibility)
+    ./autogen.sh
+    CFLAGS="-I/opt/homebrew/include" LDFLAGS="-L/opt/homebrew/lib" ./configure --enable-ref10
+    make
+
+    # Copy binary
+    cp mkp224o "$TEMP_BIN_DIR/mkp224o"
+    cd "$TEMP_BIN_DIR"
+else
+    echo "  WARNING: git not found, skipping mkp224o build"
+fi
+
 # Copy to app bundle
 BIN_DIR="$APP_PATH/Contents/Resources/bin"
 mkdir -p "$BIN_DIR"
@@ -101,6 +129,14 @@ echo "Installing binaries to app bundle..."
 cp "$TEMP_BIN_DIR/colima" "$BIN_DIR/colima"
 cp "$TEMP_BIN_DIR/limactl" "$BIN_DIR/limactl"
 cp "$TEMP_BIN_DIR/docker" "$BIN_DIR/docker"
+
+# Copy mkp224o if it was built
+if [ -f "$TEMP_BIN_DIR/mkp224o" ]; then
+    cp "$TEMP_BIN_DIR/mkp224o" "$BIN_DIR/mkp224o"
+    echo "  mkp224o installed successfully"
+else
+    echo "  WARNING: mkp224o not available"
+fi
 
 chmod +x "$BIN_DIR"/*
 

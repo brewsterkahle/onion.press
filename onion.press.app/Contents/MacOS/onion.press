@@ -18,6 +18,15 @@ COLIMA_HOME="$DATA_DIR/colima"
 # Ensure data directory exists
 mkdir -p "$DATA_DIR"
 
+# Create default config if it doesn't exist
+if [ ! -f "$DATA_DIR/config" ]; then
+    if [ -f "$RESOURCES_DIR/config-template.txt" ]; then
+        cp "$RESOURCES_DIR/config-template.txt" "$DATA_DIR/config"
+    else
+        echo "VANITY_PREFIX=op" > "$DATA_DIR/config"
+    fi
+fi
+
 # Prefer bundled binaries
 export PATH="$BIN_DIR:$PATH"
 export COLIMA_HOME="$COLIMA_HOME"
@@ -64,6 +73,42 @@ detect_container_runtime() {
     fi
 
     return 1
+}
+
+# Function to generate vanity onion address
+generate_vanity_address() {
+    local prefix="${1:-op}"
+    local output_dir="$DATA_DIR/vanity-keys"
+
+    log "Generating vanity onion address with prefix '$prefix'..."
+
+    # Create output directory
+    mkdir -p "$output_dir"
+
+    # Check if mkp224o is available
+    if [ ! -f "$BIN_DIR/mkp224o" ]; then
+        log "WARNING: mkp224o not found, using random address"
+        return 1
+    fi
+
+    # Generate vanity address (single threaded for consistency)
+    cd "$output_dir"
+    "$BIN_DIR/mkp224o" -d . -n 1 -t 4 "$prefix" >> "$LOG_FILE" 2>&1
+
+    # Find generated directory
+    VANITY_DIR=$(find "$output_dir" -type d -name "${prefix}*" | head -1)
+
+    if [ -z "$VANITY_DIR" ]; then
+        log "ERROR: Failed to generate vanity address"
+        return 1
+    fi
+
+    VANITY_ADDRESS=$(basename "$VANITY_DIR")
+    log "Generated vanity address: $VANITY_ADDRESS"
+
+    # Return the directory path
+    echo "$VANITY_DIR"
+    return 0
 }
 
 # Function to initialize container runtime
@@ -117,6 +162,38 @@ start_containers() {
     log "Starting onion.press containers..."
 
     cd "$DOCKER_DIR"
+
+    # Check if this is first run (no tor keys exist)
+    if ! docker volume ls | grep -q "onionpress-tor-keys"; then
+        log "First run detected - generating vanity onion address..."
+
+        # Read prefix from config, default to "op"
+        VANITY_PREFIX="op"
+        if [ -f "$DATA_DIR/config" ]; then
+            CUSTOM_PREFIX=$(grep "^VANITY_PREFIX=" "$DATA_DIR/config" | cut -d= -f2)
+            if [ ! -z "$CUSTOM_PREFIX" ]; then
+                VANITY_PREFIX="$CUSTOM_PREFIX"
+            fi
+        fi
+
+        log "Using vanity prefix: '$VANITY_PREFIX'"
+
+        # Generate vanity address
+        if VANITY_DIR=$(generate_vanity_address "$VANITY_PREFIX"); then
+            log "Vanity address generated successfully"
+
+            # Create volume and copy keys
+            docker volume create onionpress-tor-keys >> "$LOG_FILE" 2>&1
+            docker run --rm \
+                -v onionpress-tor-keys:/dest \
+                -v "$VANITY_DIR":/src \
+                alpine sh -c 'mkdir -p /dest/wordpress && cp -r /src/* /dest/wordpress/' >> "$LOG_FILE" 2>&1
+
+            log "Vanity keys installed to tor volume"
+        else
+            log "Using random onion address"
+        fi
+    fi
 
     # Pull images if not present (with progress)
     if ! docker compose images | grep -q "wordpress"; then
