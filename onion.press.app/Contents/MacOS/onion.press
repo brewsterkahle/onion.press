@@ -23,7 +23,10 @@ if [ ! -f "$DATA_DIR/config" ]; then
     if [ -f "$RESOURCES_DIR/config-template.txt" ]; then
         cp "$RESOURCES_DIR/config-template.txt" "$DATA_DIR/config"
     else
-        echo "VANITY_PREFIX=op2" > "$DATA_DIR/config"
+        cat > "$DATA_DIR/config" <<EOF
+VANITY_PREFIX=op2
+INSTALL_IA_PLUGIN=yes
+EOF
     fi
 fi
 
@@ -108,6 +111,103 @@ generate_vanity_address() {
 
     # Return the directory path (only thing on stdout)
     echo "$VANITY_DIR"
+    return 0
+}
+
+# Function to install and activate Internet Archive Wayback Machine Link Fixer plugin
+install_ia_plugin() {
+    # Check if plugin installation is enabled in config
+    local install_plugin="yes"
+    if [ -f "$DATA_DIR/config" ]; then
+        local config_value=$(grep "^INSTALL_IA_PLUGIN=" "$DATA_DIR/config" | cut -d= -f2)
+        if [ ! -z "$config_value" ]; then
+            install_plugin="$config_value"
+        fi
+    fi
+
+    if [ "$install_plugin" != "yes" ]; then
+        log "Internet Archive plugin installation disabled in config"
+        return 0
+    fi
+
+    log "Checking Internet Archive Wayback Machine Link Fixer plugin..."
+
+    cd "$DOCKER_DIR"
+
+    # Check if plugin is already active
+    if docker compose exec -T wordpress test -f /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php 2>/dev/null; then
+        # Plugin is installed, check if WordPress is configured and activate if needed
+        if docker compose exec -T wordpress test -f /var/www/html/wp-config.php 2>/dev/null; then
+            # Check if plugin is activated in the database (look for active_plugins option)
+            if docker compose exec -T wordpress grep -q "internet-archive-wayback-machine-link-fixer" /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php 2>/dev/null; then
+                # Try to activate using wp-cli by injecting it into the container
+                log "Attempting to activate Internet Archive plugin..."
+                docker compose exec -T wordpress bash -c '
+                    if [ -f /var/www/html/wp-config.php ]; then
+                        # Create a simple PHP script to activate the plugin
+                        cat > /tmp/activate-plugin.php << '\''EOFPHP'\''
+<?php
+define('\''WP_USE_THEMES'\'', false);
+require_once('\''/var/www/html/wp-load.php'\'');
+if (!is_plugin_active('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'')) {
+    activate_plugin('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'');
+    echo "Plugin activated\n";
+} else {
+    echo "Plugin already active\n";
+}
+EOFPHP
+                        php /tmp/activate-plugin.php 2>/dev/null && rm /tmp/activate-plugin.php
+                    fi
+                ' >>"$LOG_FILE" 2>&1 && log "✓ Internet Archive Wayback Machine Link Fixer plugin is active" || log "Plugin installed, activate it in WordPress admin after setup"
+            fi
+        fi
+        return 0
+    fi
+
+    log "Installing Internet Archive Wayback Machine Link Fixer plugin..."
+
+    # Create temp directory for plugin download
+    local temp_dir=$(mktemp -d)
+
+    # Download and extract plugin
+    if curl -sS -L -o "$temp_dir/ia-plugin.zip" https://downloads.wordpress.org/plugin/internet-archive-wayback-machine-link-fixer.latest-stable.zip 2>>"$LOG_FILE"; then
+        cd "$temp_dir"
+        if unzip -q ia-plugin.zip 2>>"$LOG_FILE"; then
+            # Copy plugin to WordPress container
+            if docker cp internet-archive-wayback-machine-link-fixer onionpress-wordpress:/var/www/html/wp-content/plugins/ 2>>"$LOG_FILE" && \
+                cd "$DOCKER_DIR" && \
+                docker compose exec -T wordpress chown -R www-data:www-data /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer 2>>"$LOG_FILE"; then
+                log "✓ Internet Archive Wayback Machine Link Fixer plugin installed!"
+
+                # Try to activate immediately if WordPress is configured
+                cd "$DOCKER_DIR" && \
+                docker compose exec -T wordpress bash -c '
+                    if [ -f /var/www/html/wp-config.php ]; then
+                        cat > /tmp/activate-plugin.php << '\''EOFPHP'\''
+<?php
+define('\''WP_USE_THEMES'\'', false);
+require_once('\''/var/www/html/wp-load.php'\'');
+if (!is_plugin_active('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'')) {
+    activate_plugin('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'');
+    echo "Plugin activated\n";
+}
+EOFPHP
+                        php /tmp/activate-plugin.php 2>/dev/null && rm /tmp/activate-plugin.php
+                    fi
+                ' >>"$LOG_FILE" 2>&1 && log "✓ Plugin automatically activated!" || log "Plugin will auto-activate after WordPress setup"
+            else
+                log "Failed to copy plugin to container"
+            fi
+        else
+            log "Failed to extract plugin"
+        fi
+    else
+        log "Failed to download plugin"
+    fi
+
+    # Clean up
+    rm -rf "$temp_dir"
+
     return 0
 }
 
@@ -205,6 +305,9 @@ start_containers() {
     docker compose up -d 2>&1 | tee -a "$LOG_FILE"
 
     log "Containers started successfully"
+
+    # Install Internet Archive Wayback Machine Link Fixer plugin
+    install_ia_plugin
 }
 
 # Function to stop containers

@@ -10,6 +10,7 @@ onion.press is a macOS application that bundles WordPress with a Tor hidden serv
 
 - 🧅 **Tor Hidden Service**: Your WordPress site is automatically configured as a Tor onion service
 - ✨ **Vanity Onion Addresses**: All installations generate addresses starting with "op2" for easy identification
+- 📚 **Internet Archive Integration**: Automatically installs the [Wayback Machine Link Fixer](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/) plugin to combat link rot
 - 🐳 **Container-Based**: Uses Docker containers for easy management and isolation
 - 📱 **Menu Bar App**: Simple menu bar interface to control your site
 - 🚀 **One-Click Install**: Download the DMG, drag to Applications, and launch
@@ -54,6 +55,22 @@ Once installed, onion.press appears in your menu bar with an onion icon (🧅):
 4. Complete the WordPress setup wizard
 
 **Vanity Address Configuration**: You can customize the prefix in `~/.onion.press/config` before first launch. See the config file for details on generation times for different prefix lengths.
+
+### Internet Archive Wayback Machine Link Fixer
+
+onion.press automatically installs and activates the [Internet Archive Wayback Machine Link Fixer plugin](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/), which helps combat link rot by:
+
+- Automatically scanning your posts for outbound links
+- Creating archived versions in the Wayback Machine
+- Redirecting to archived versions when links break
+- Archiving your own posts on every update
+
+**The plugin is enabled by default.** To disable automatic installation, edit `~/.onion.press/config` before first launch:
+```bash
+INSTALL_IA_PLUGIN=no
+```
+
+For increased daily link processing, you can add your free Archive.org API credentials in the plugin settings after setup.
 
 ### Local Testing
 

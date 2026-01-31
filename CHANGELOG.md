@@ -2,6 +2,20 @@
 
 All notable changes to onion.press will be documented in this file.
 
+## [2.0.3] - 2026-01-31
+
+### Added
+- **Internet Archive Wayback Machine Link Fixer plugin** - Automatically installed and activated to combat link rot
+- Plugin helps preserve web links by creating archived versions and redirecting when links break
+- Automatic archiving of your own posts on every update
+- Configurable installation via `~/.onion.press/config` (INSTALL_IA_PLUGIN=yes/no, default: yes)
+- Plugin automatically activates after WordPress setup is complete
+
+### Technical
+- Plugin is downloaded from WordPress.org repository and copied to WordPress container on first launch
+- Automatic activation using PHP script injection
+- Configuration option to disable automatic installation if desired
+
 ## [2.0.2] - 2026-01-31
 
 ### Added
