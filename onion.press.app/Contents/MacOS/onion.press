@@ -141,7 +141,8 @@ stop_containers() {
 # Function to get container status
 get_status() {
     cd "$DOCKER_DIR"
-    docker compose ps --format json 2>/dev/null || echo "[]"
+    # Convert newline-delimited JSON to JSON array
+    docker compose ps --format json 2>/dev/null | jq -s '.' 2>/dev/null || echo "[]"
 }
 
 # Function to get onion address
