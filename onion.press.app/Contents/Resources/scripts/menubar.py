@@ -238,7 +238,6 @@ class OnionPressApp(rumps.App):
     def start_service(self, _):
         """Start the WordPress + Tor service"""
         self.menu["Starting..."].title = "Status: Starting..."
-        self.title = "OP ..."
 
         def start():
             subprocess.run([self.launcher_script, "start"])
@@ -251,7 +250,6 @@ class OnionPressApp(rumps.App):
     def stop_service(self, _):
         """Stop the WordPress + Tor service"""
         self.menu["Starting..."].title = "Status: Stopping..."
-        self.title = "OP ..."
 
         def stop():
             subprocess.run([self.launcher_script, "stop"])
@@ -264,7 +262,6 @@ class OnionPressApp(rumps.App):
     def restart_service(self, _):
         """Restart the WordPress + Tor service"""
         self.menu["Starting..."].title = "Status: Restarting..."
-        self.title = "OP ..."
 
         def restart():
             subprocess.run([self.launcher_script, "restart"])
