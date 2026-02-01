@@ -18,6 +18,23 @@ COLIMA_HOME="$DATA_DIR/colima"
 # Ensure data directory exists
 mkdir -p "$DATA_DIR"
 
+# Create Docker config without credential store (avoids docker-credential-osxkeychain errors)
+mkdir -p "$DATA_DIR/docker-config"
+if [ ! -f "$DATA_DIR/docker-config/config.json" ]; then
+    cat > "$DATA_DIR/docker-config/config.json" <<'EOFCONFIG'
+{
+	"auths": {},
+	"currentContext": "colima"
+}
+EOFCONFIG
+fi
+
+# Create symlink to docker-compose plugin if it exists in default location
+mkdir -p "$DATA_DIR/docker-config/cli-plugins"
+if [ -L "$HOME/.docker/cli-plugins/docker-compose" ] && [ ! -e "$DATA_DIR/docker-config/cli-plugins/docker-compose" ]; then
+    ln -sf "$HOME/.docker/cli-plugins/docker-compose" "$DATA_DIR/docker-config/cli-plugins/docker-compose"
+fi
+
 # Create default config if it doesn't exist
 if [ ! -f "$DATA_DIR/config" ]; then
     if [ -f "$RESOURCES_DIR/config-template.txt" ]; then
@@ -36,6 +53,7 @@ export COLIMA_HOME="$COLIMA_HOME"
 export LIMA_HOME="$COLIMA_HOME/_lima"
 export LIMA_INSTANCE="onionpress"
 export DOCKER_HOST="unix://$COLIMA_HOME/default/docker.sock"
+export DOCKER_CONFIG="$DATA_DIR/docker-config"
 
 # Log file
 LOG_FILE="$DATA_DIR/onion.press.log"
@@ -296,16 +314,9 @@ start_containers() {
         fi
     fi
 
-    # Pull images if not present (with progress)
-    if ! docker compose images | grep -q "wordpress"; then
-        log "Downloading container images (this may take a few minutes)..."
-        docker compose pull 2>&1 | tee -a "$LOG_FILE"
-    fi
-
-    # Start containers
-    docker compose up -d 2>&1 | tee -a "$LOG_FILE"
-
-    log "Containers started successfully"
+    # Just start containers - the menubar app will handle image pulling
+    docker compose up -d >> "$LOG_FILE" 2>&1
+    log "Containers starting (images will download if needed)"
 
     # Install Internet Archive Wayback Machine Link Fixer plugin
     install_ia_plugin

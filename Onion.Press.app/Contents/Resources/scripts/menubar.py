@@ -46,12 +46,32 @@ class OnionPressApp(rumps.App):
         # Get version from Info.plist
         self.version = self.get_version()
 
+        # Create Docker config without credential store (avoids docker-credential-osxkeychain errors)
+        docker_config_dir = os.path.join(self.app_support, "docker-config")
+        os.makedirs(docker_config_dir, exist_ok=True)
+        docker_config_file = os.path.join(docker_config_dir, "config.json")
+        if not os.path.exists(docker_config_file):
+            with open(docker_config_file, 'w') as f:
+                f.write('{\n\t"auths": {},\n\t"currentContext": "colima"\n}\n')
+
+        # Create symlink to docker-compose plugin if it exists in default location
+        cli_plugins_dir = os.path.join(docker_config_dir, "cli-plugins")
+        os.makedirs(cli_plugins_dir, exist_ok=True)
+        compose_plugin_src = os.path.expanduser("~/.docker/cli-plugins/docker-compose")
+        compose_plugin_dest = os.path.join(cli_plugins_dir, "docker-compose")
+        if os.path.islink(compose_plugin_src) and not os.path.exists(compose_plugin_dest):
+            try:
+                os.symlink(compose_plugin_src, compose_plugin_dest)
+            except:
+                pass  # Ignore errors if symlink creation fails
+
         # Set up bundled binaries environment
         os.environ["PATH"] = f"{self.bin_dir}:{os.environ.get('PATH', '')}"
         os.environ["COLIMA_HOME"] = self.colima_home
         os.environ["LIMA_HOME"] = os.path.join(self.colima_home, "_lima")
         os.environ["LIMA_INSTANCE"] = "onionpress"
         os.environ["DOCKER_HOST"] = f"unix://{self.colima_home}/default/docker.sock"
+        os.environ["DOCKER_CONFIG"] = docker_config_dir
 
         # State
         self.onion_address = "Starting..."
@@ -495,9 +515,38 @@ class OnionPressApp(rumps.App):
             # Start the service
             subprocess.run([self.launcher_script, "start"])
 
-            # If first run, monitor download progress
+            # If first run, start containers directly (which will pull images automatically)
             if first_run:
-                self.monitor_image_downloads()
+                self.log("Starting containers (will download images automatically)...")
+                docker_dir = os.path.join(self.resources_dir, "docker")
+                try:
+                    # Run docker compose up which will automatically pull missing images
+                    env = os.environ.copy()
+                    env["DOCKER_HOST"] = f"unix://{self.colima_home}/default/docker.sock"
+                    # Use the bundled docker binary
+                    docker_bin = os.path.join(self.bin_dir, "docker")
+                    # Run in separate thread so it doesn't block
+                    def pull_and_start():
+                        # Don't capture output - let it stream to log file
+                        docker_log = os.path.join(self.app_support, "docker-pull.log")
+                        with open(docker_log, 'w') as log_file:
+                            result = subprocess.run(
+                                [docker_bin, "compose", "up", "-d"],
+                                cwd=docker_dir,
+                                stdout=log_file,
+                                stderr=subprocess.STDOUT,
+                                timeout=600,  # 10 minute timeout for image downloads
+                                env=env
+                            )
+                        self.log(f"Docker compose up completed with exit code: {result.returncode}")
+                        if result.returncode == 0:
+                            self.show_notification("Containers started!", "WordPress is starting...")
+
+                    threading.Thread(target=pull_and_start, daemon=True).start()
+                    # Monitor for completion
+                    self.monitor_image_downloads()
+                except Exception as e:
+                    self.log(f"Error starting containers: {e}")
 
             time.sleep(2)
             self.check_status()
