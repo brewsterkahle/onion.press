@@ -12,6 +12,13 @@ import time
 import json
 import urllib.request
 import plistlib
+import sys
+
+# Add scripts directory to path for imports
+script_dir = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, script_dir)
+
+import key_manager
 
 class OnionPressApp(rumps.App):
     def __init__(self):
@@ -59,6 +66,9 @@ class OnionPressApp(rumps.App):
             rumps.separator,
             rumps.MenuItem("View Logs", callback=self.view_logs),
             rumps.MenuItem("Settings...", callback=self.open_settings),
+            rumps.separator,
+            rumps.MenuItem("Export Private Key...", callback=self.export_key),
+            rumps.MenuItem("Import Private Key...", callback=self.import_key),
             rumps.separator,
             rumps.MenuItem("Check for Updates...", callback=self.check_for_updates),
             rumps.MenuItem("About onion.press", callback=self.show_about),
@@ -302,6 +312,127 @@ class OnionPressApp(rumps.App):
             subprocess.run(["open", "-t", config_file])
         else:
             rumps.alert("Settings file not found")
+
+    @rumps.clicked("Export Private Key...")
+    def export_key(self, _):
+        """Export Tor private key as BIP39 mnemonic words"""
+        if not self.is_running:
+            rumps.alert(
+                title="Service Not Running",
+                message="Please start the service first before exporting the private key."
+            )
+            return
+
+        try:
+            # Get the mnemonic
+            mnemonic = key_manager.export_key_as_mnemonic()
+            word_count = len(mnemonic.split())
+
+            # Format for display with line breaks every 6 words
+            words = mnemonic.split()
+            formatted_lines = []
+            for i in range(0, len(words), 6):
+                formatted_lines.append(' '.join(words[i:i+6]))
+            formatted_mnemonic = '\n'.join(formatted_lines)
+
+            # Show the mnemonic with warning
+            message = f"""⚠️ IMPORTANT: Keep these words safe and private!
+
+These {word_count} words represent your private key and onion address. Anyone with these words can restore your exact onion address.
+
+{formatted_mnemonic}
+
+The words have been copied to your clipboard.
+
+Store them in a safe place - you can use them to restore your onion address on a new installation."""
+
+            subprocess.run(["pbcopy"], input=mnemonic.encode(), check=True)
+
+            rumps.alert(
+                title="Private Key Backup",
+                message=message
+            )
+
+        except Exception as e:
+            rumps.alert(
+                title="Export Failed",
+                message=f"Could not export private key:\n\n{str(e)}"
+            )
+
+    @rumps.clicked("Import Private Key...")
+    def import_key(self, _):
+        """Import Tor private key from BIP39 mnemonic words"""
+        # Warning dialog
+        response = rumps.alert(
+            title="Import Private Key",
+            message="⚠️ WARNING: Importing a private key will replace your current onion address!\n\nYour WordPress site will be accessible at a different .onion address after import.\n\nMake sure you have backed up your current key first.\n\nContinue?",
+            ok="Continue",
+            cancel="Cancel"
+        )
+
+        if response != 1:  # Cancel clicked
+            return
+
+        # Get mnemonic from user
+        window = rumps.Window(
+            title="Import Private Key",
+            message="Paste your BIP39 mnemonic words below (47 words):",
+            default_text="",
+            ok="Import",
+            cancel="Cancel",
+            dimensions=(400, 100)
+        )
+
+        response = window.run()
+
+        if not response.clicked:  # Cancel
+            return
+
+        mnemonic = response.text.strip()
+
+        if not mnemonic:
+            rumps.alert("No mnemonic provided")
+            return
+
+        # Validate word count
+        word_count = len(mnemonic.split())
+        if word_count != 47:
+            rumps.alert(
+                title="Invalid Mnemonic",
+                message=f"Expected 47 words, got {word_count} words.\n\nPlease check your mnemonic and try again."
+            )
+            return
+
+        # Try to import
+        try:
+            # Convert mnemonic to key bytes
+            key_bytes = key_manager.import_key_from_mnemonic(mnemonic)
+
+            # Stop the service first
+            subprocess.run([self.launcher_script, "stop"], capture_output=True)
+            time.sleep(2)
+
+            # Write the new key
+            key_manager.write_private_key(key_bytes)
+
+            # Restart the service
+            time.sleep(3)
+            subprocess.run([self.launcher_script, "start"], capture_output=True)
+
+            rumps.alert(
+                title="Import Successful",
+                message="Your private key has been imported successfully!\n\nThe service is restarting with your new onion address.\n\nPlease wait a moment for the address to appear in the menu."
+            )
+
+            # Trigger status check
+            time.sleep(2)
+            self.check_status()
+
+        except Exception as e:
+            rumps.alert(
+                title="Import Failed",
+                message=f"Could not import private key:\n\n{str(e)}\n\nYour original key has not been changed."
+            )
 
     @rumps.clicked("Check for Updates...")
     def check_for_updates(self, _):

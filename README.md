@@ -6,7 +6,7 @@
 
 **Easy-to-install WordPress with Tor Hidden Service for macOS**
 
-> **Current Version: 2.0.5** - Now with vanity onion addresses!
+> **Current Version: 2.0.6** - Now with vanity onion addresses and key backup!
 
 onion.press is a macOS application that bundles WordPress with a Tor hidden service, allowing you to run a WordPress blog accessible only through the Tor network.
 
@@ -48,8 +48,11 @@ Once installed, onion.press appears in your menu bar with an onion icon (🧅):
 
 - **Copy Onion Address**: Copy your .onion URL to clipboard
 - **Open in Tor Browser**: Launch Tor Browser with your site (requires Tor Browser to be installed)
-- **Start/Stop/Restart**: Control the WordPress service
+- **Start/Stop**: Control the WordPress service
 - **View Logs**: Open logs in Console.app for troubleshooting
+- **Settings**: Open configuration file for customization
+- **Export Private Key**: Backup your onion address as 47 BIP39 mnemonic words (like Bitcoin seed phrases)
+- **Import Private Key**: Restore your onion address from a mnemonic backup
 
 ### Accessing Your Site
 
@@ -59,6 +62,26 @@ Once installed, onion.press appears in your menu bar with an onion icon (🧅):
 4. Complete the WordPress setup wizard
 
 **Vanity Address Configuration**: You can customize the prefix in `~/.onion.press/config` before first launch. See the config file for details on generation times for different prefix lengths.
+
+### Private Key Backup & Restore
+
+Your onion address is derived from a private key. You can back up and restore this key to:
+- Migrate your onion address to a new machine
+- Recover your address after reinstalling
+- Keep a secure backup of your identity
+
+**To backup your key:**
+1. Click "Export Private Key" in the menu bar
+2. You'll receive 47 BIP39 mnemonic words (like Bitcoin seed phrases)
+3. Write these words down and store them securely
+4. Anyone with these words can restore your exact onion address
+
+**To restore a key:**
+1. Click "Import Private Key" in the menu bar
+2. Paste your 47 mnemonic words
+3. Your onion address will be restored
+
+⚠️ **Security Note**: Keep your mnemonic words private and secure. Anyone with these words can impersonate your onion address.
 
 ### Internet Archive Wayback Machine Link Fixer
 

@@ -2,6 +2,20 @@
 
 All notable changes to onion.press will be documented in this file.
 
+## [2.0.6] - 2026-01-31
+
+### Added
+- **Private Key Backup & Restore** - Export and import your Tor private key using BIP39 mnemonic words
+- **Export Private Key** menu item - Backs up your onion address as 47 easy-to-remember words (like Bitcoin seed phrases)
+- **Import Private Key** menu item - Restore your onion address from a mnemonic backup
+- Ability to migrate your onion address to a new installation
+
+### Technical
+- Implemented BIP39 word encoding for Tor v3 Ed25519 private keys
+- 47-word mnemonic encodes the full 64-byte private key
+- Automatic service restart after key import to regenerate public key
+- Full roundtrip validation (export → import → verify)
+
 ## [2.0.5] - 2026-01-31
 
 ### Added
