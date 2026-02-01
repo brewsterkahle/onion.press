@@ -34,6 +34,12 @@ log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
 }
 
+# Function to update initialization status (shown as notification)
+update_status() {
+    log "Status: $1"
+    osascript -e "display notification \"$1\" with title \"Onion.Press Setup\"" 2>/dev/null || true
+}
+
 log "Starting onion.press launcher..."
 
 # Check for Python 3
@@ -56,12 +62,20 @@ fi
 
 log "Python 3 found: $(python3 --version)"
 
+# Check if this is first-time initialization
+FIRST_RUN=false
+if [ ! -d "$VENV_DIR" ] || [ ! -f "$COLIMA_HOME/.initialized" ]; then
+    FIRST_RUN=true
+    log "First-time initialization detected"
+fi
+
 # Create virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR" ]; then
+    update_status "Initializing Python environment..."
     log "Creating Python virtual environment..."
     python3 -m venv "$VENV_DIR" >> "$LOG_FILE" 2>&1
 
-    log "Installing Python dependencies..."
+    update_status "Installing Python dependencies..."
     "$VENV_DIR/bin/pip" install --upgrade pip >> "$LOG_FILE" 2>&1
     "$VENV_DIR/bin/pip" install -r "$SCRIPTS_DIR/requirements.txt" >> "$LOG_FILE" 2>&1
 
@@ -71,6 +85,7 @@ fi
 # Initialize Colima on first run
 initialize_colima() {
     if [ ! -f "$COLIMA_HOME/.initialized" ]; then
+        update_status "Starting container runtime (2-3 min)..."
         log "Initializing Colima container runtime..."
 
         # Check macOS version >= 13
@@ -144,6 +159,11 @@ if [ -S "$COLIMA_SOCKET" ]; then
         ln -sf "$COLIMA_SOCKET" "$SOCKET_PATH"
         log "Docker socket symlink created: $SOCKET_PATH -> $COLIMA_SOCKET"
     fi
+fi
+
+# Show completion notification if first run
+if [ "$FIRST_RUN" = true ]; then
+    update_status "Setup complete! Launching Onion.Press..."
 fi
 
 # Activate virtual environment and run menu bar app
