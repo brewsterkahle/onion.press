@@ -13,6 +13,7 @@ import json
 import urllib.request
 import plistlib
 import sys
+from datetime import datetime
 
 # Add scripts directory to path for imports
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -32,6 +33,7 @@ class OnionPressApp(rumps.App):
         self.bin_dir = os.path.join(self.resources_dir, "bin")
         self.colima_home = os.path.join(self.app_support, "colima")
         self.info_plist = os.path.join(self.contents_dir, "Info.plist")
+        self.log_file = os.path.join(self.app_support, "onion.press.log")
 
         # Icon paths
         self.icon_running = os.path.join(self.resources_dir, "menubar-icon-running.png")
@@ -56,6 +58,8 @@ class OnionPressApp(rumps.App):
         self.is_running = False
         self.is_ready = False  # WordPress is ready to serve requests
         self.checking = False
+        self.web_log_process = None  # Background process for web logs
+        self.last_status_logged = None  # Track last logged status to avoid spam
 
         # Menu items
         self.menu = [
@@ -68,6 +72,7 @@ class OnionPressApp(rumps.App):
             rumps.MenuItem("Stop", callback=self.stop_service),
             rumps.separator,
             rumps.MenuItem("View Logs", callback=self.view_logs),
+            rumps.MenuItem("View Web Usage Log", callback=self.view_web_log),
             rumps.MenuItem("Settings...", callback=self.open_settings),
             rumps.separator,
             rumps.MenuItem("Export Private Key...", callback=self.export_key),
@@ -88,6 +93,56 @@ class OnionPressApp(rumps.App):
 
         # Auto-start on launch
         threading.Thread(target=self.auto_start, daemon=True).start()
+
+    def log(self, message):
+        """Write log message to onion.press.log file"""
+        try:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_message = f"[{timestamp}] {message}\n"
+            with open(self.log_file, 'a') as f:
+                f.write(log_message)
+        except Exception as e:
+            print(f"Error writing to log: {e}")
+
+    def start_web_log_capture(self):
+        """Start capturing WordPress logs to a file"""
+        if self.web_log_process is not None:
+            return  # Already running
+
+        try:
+            web_log_file = os.path.join(self.app_support, "wordpress-access.log")
+            docker_bin = os.path.join(self.bin_dir, "docker")
+
+            # Open log file for writing
+            log_file_handle = open(web_log_file, 'a')
+
+            # Start docker logs process in background
+            self.web_log_process = subprocess.Popen(
+                [docker_bin, "logs", "-f", "--tail", "100", "onionpress-wordpress"],
+                stdout=log_file_handle,
+                stderr=subprocess.STDOUT,
+                env={
+                    "DOCKER_HOST": f"unix://{self.colima_home}/default/docker.sock"
+                }
+            )
+            print(f"Started web log capture to {web_log_file}")
+        except Exception as e:
+            print(f"Error starting web log capture: {e}")
+            self.web_log_process = None
+
+    def stop_web_log_capture(self):
+        """Stop capturing WordPress logs"""
+        if self.web_log_process is not None:
+            try:
+                self.web_log_process.terminate()
+                self.web_log_process.wait(timeout=5)
+            except:
+                try:
+                    self.web_log_process.kill()
+                except:
+                    pass
+            self.web_log_process = None
+            print("Stopped web log capture")
 
     def ensure_docker_available(self):
         """Ensure bundled Colima is running"""
@@ -146,51 +201,121 @@ class OnionPressApp(rumps.App):
             print(f"Error running command {command}: {e}")
             return None
 
-    def check_wordpress_health(self):
+    def check_wordpress_health(self, log_result=True):
         """Check if WordPress is actually responding to requests"""
         try:
+            if log_result:
+                self.log("Checking local access: http://localhost:8080")
             req = urllib.request.Request('http://localhost:8080')
             with urllib.request.urlopen(req, timeout=3) as response:
                 content = response.read().decode('utf-8', errors='ignore')
                 # Check for database errors or WordPress not ready
                 if 'Error establishing a database connection' in content:
+                    if log_result:
+                        self.log("✗ Local access: Database connection error")
                     return False
                 if 'Database connection error' in content:
+                    if log_result:
+                        self.log("✗ Local access: Database connection error")
                     return False
                 # If we get here and got a response, WordPress is responding
                 # Either it's the install page or actual WordPress content
+                if log_result:
+                    self.log("✓ Local access: WordPress responding")
                 return True
-        except:
+        except Exception as e:
+            if log_result:
+                self.log(f"✗ Local access: Connection failed ({str(e)})")
             return False
 
-    def check_tor_reachability(self):
-        """Check if the onion address is actually reachable over the Tor network"""
+    def check_tor_reachability(self, log_result=True):
+        """Check if the .onion service is properly configured and published"""
+        if not self.onion_address or self.onion_address in ["Starting...", "Not running", "Generating address..."]:
+            return False
+
         try:
-            if not self.onion_address or self.onion_address in ["Starting...", "Not running", "Generating address..."]:
-                return False
+            if log_result:
+                self.log(f"Checking Tor hidden service status for: {self.onion_address}")
 
-            # Use docker to run a Tor client and test connectivity
-            docker_cmd = [
-                "docker", "run", "--rm", "--network", "onionpress-network",
-                "alpine", "sh", "-c",
-                f"timeout 15 sh -c 'apk add --no-cache tor curl >/dev/null 2>&1 && "
-                f"(tor >/dev/null 2>&1 &) && "
-                f"while ! nc -z localhost 9050 2>/dev/null; do sleep 0.5; done && "
-                f"curl -s -m 10 --socks5-hostname localhost:9050 http://{self.onion_address} >/dev/null 2>&1'"
-            ]
+            docker_bin = os.path.join(self.bin_dir, "docker")
 
+            # Check 1: Verify hostname file exists and matches
             result = subprocess.run(
-                docker_cmd,
+                [docker_bin, "exec", "onionpress-tor",
+                 "cat", "/var/lib/tor/hidden_service/wordpress/hostname"],
                 capture_output=True,
-                timeout=20
+                text=True,
+                timeout=5
             )
 
-            return result.returncode == 0
-        except subprocess.TimeoutExpired:
-            print("Tor reachability check timed out")
+            if result.returncode != 0:
+                if log_result:
+                    self.log(f"✗ Hidden service hostname file not found")
+                return False
+
+            hostname = result.stdout.strip()
+            if hostname != self.onion_address:
+                if log_result:
+                    self.log(f"✗ Hostname mismatch: {hostname} != {self.onion_address}")
+                return False
+
+            # Check 2: Verify Tor has bootstrapped to 100%
+            result = subprocess.run(
+                [docker_bin, "logs", "--tail", "50", "onionpress-tor"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if "Bootstrapped 100% (done)" not in result.stdout:
+                if log_result:
+                    self.log(f"✗ Tor not fully bootstrapped yet")
+                return False
+
+            # Check 3: Verify no critical errors in recent logs
+            if "ERROR" in result.stdout or "failed to publish" in result.stdout.lower():
+                if log_result:
+                    self.log(f"✗ Tor errors detected in logs")
+                return False
+
+            # All checks passed - hidden service should be reachable
+            if log_result:
+                self.log(f"✓ Onion service published and ready: {self.onion_address}")
+            return True
+
+        except Exception as e:
+            if log_result:
+                self.log(f"✗ Tor status check failed: {str(e)}")
+            return False
+
+    def check_minimum_uptime(self, status):
+        """Check if containers have been running long enough for onion service to publish"""
+        try:
+            # Parse uptime from status (e.g., "Up 2 minutes" or "Up 45 seconds")
+            for container in status:
+                if 'tor' in container.get('Name', '').lower():
+                    status_str = container.get('Status', '')
+                    # Parse "Up X seconds/minutes"
+                    if 'Up' in status_str:
+                        parts = status_str.split()
+                        if len(parts) >= 3:
+                            value = parts[1]
+                            unit = parts[2].lower()
+
+                            try:
+                                uptime_seconds = int(value)
+                                if 'minute' in unit:
+                                    uptime_seconds *= 60
+                                elif 'hour' in unit:
+                                    uptime_seconds *= 3600
+
+                                # Require at least 90 seconds for onion service to publish
+                                return uptime_seconds >= 90
+                            except:
+                                pass
             return False
         except Exception as e:
-            print(f"Error checking Tor reachability: {e}")
+            print(f"Error checking uptime: {e}")
             return False
 
     def check_status(self):
@@ -222,14 +347,44 @@ class OnionPressApp(rumps.App):
                 else:
                     self.onion_address = "Generating address..."
 
-                # Check if WordPress is actually ready AND the onion address is reachable over Tor
-                wordpress_ready = self.check_wordpress_health()
-                tor_reachable = self.check_tor_reachability()
+                # Determine if we should do detailed checks and logging
+                # Only do detailed checks if we're not ready yet or status changed
+                current_status = (self.is_running, self.onion_address)
+                should_log = (current_status != self.last_status_logged) or not self.is_ready
 
-                self.is_ready = wordpress_ready and tor_reachable
+                # Check if WordPress is actually ready AND enough time has passed
+                # for the onion service to publish its descriptor (minimum 90 seconds)
+                wordpress_ready = self.check_wordpress_health(log_result=should_log)
+                minimum_uptime_reached = self.check_minimum_uptime(status)
+
+                # Only check Tor reachability if minimum uptime is reached
+                tor_reachable = False
+                if minimum_uptime_reached:
+                    tor_reachable = self.check_tor_reachability(log_result=should_log)
+
+                previous_ready = self.is_ready
+                self.is_ready = wordpress_ready and minimum_uptime_reached and tor_reachable
+
+                # Log status change when becoming ready
+                if self.is_ready and not previous_ready:
+                    self.log("✓ System fully operational - reducing check frequency")
+                    self.last_status_logged = current_status
+
+                # Start web log capture if not already running
+                if self.web_log_process is None:
+                    threading.Thread(target=self.start_web_log_capture, daemon=True).start()
             else:
+                # Log when stopping
+                if self.is_running or self.is_ready:
+                    self.log("Service stopped")
+                    self.last_status_logged = None
+
                 self.onion_address = "Not running"
                 self.is_ready = False
+
+                # Stop web log capture if running
+                if self.web_log_process is not None:
+                    self.stop_web_log_capture()
 
             # Update menu
             self.update_menu()
@@ -265,7 +420,11 @@ class OnionPressApp(rumps.App):
         def checker():
             while True:
                 self.check_status()
-                time.sleep(5)  # Check every 5 seconds
+                # Check frequently when starting up, slowly when ready
+                if self.is_ready:
+                    time.sleep(30)  # Check every 30 seconds when operational
+                else:
+                    time.sleep(5)   # Check every 5 seconds during startup
 
         thread = threading.Thread(target=checker, daemon=True)
         thread.start()
@@ -352,6 +511,24 @@ class OnionPressApp(rumps.App):
             subprocess.run(["open", "-a", "Console", log_file])
         else:
             rumps.alert("No logs available yet")
+
+    @rumps.clicked("View Web Usage Log")
+    def view_web_log(self, _):
+        """Open WordPress access log in Console.app"""
+        if not self.is_running:
+            rumps.alert("Service not running. Please start the service first.")
+            return
+
+        web_log_file = os.path.join(self.app_support, "wordpress-access.log")
+
+        # Ensure the log file exists
+        if not os.path.exists(web_log_file):
+            # Create it and wait a moment for logs to populate
+            open(web_log_file, 'a').close()
+            time.sleep(1)
+
+        # Open in Console.app
+        subprocess.run(["open", "-a", "Console", web_log_file])
 
     def get_version(self):
         """Get version from Info.plist"""
@@ -605,6 +782,8 @@ docker volume rm onionpress-tor-keys onionpress-wordpress-data onionpress-db-dat
             cancel="Cancel"
         )
         if response == 1:  # OK clicked
+            # Stop web log capture
+            self.stop_web_log_capture()
             # Stop services before quitting
             subprocess.run([self.launcher_script, "stop"])
             rumps.quit_application()
