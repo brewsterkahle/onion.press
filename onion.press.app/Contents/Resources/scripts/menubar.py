@@ -10,6 +10,8 @@ import os
 import threading
 import time
 import json
+import urllib.request
+import plistlib
 
 class OnionPressApp(rumps.App):
     def __init__(self):
@@ -24,6 +26,10 @@ class OnionPressApp(rumps.App):
         self.launcher_script = os.path.join(self.macos_dir, "onion.press")
         self.bin_dir = os.path.join(self.resources_dir, "bin")
         self.colima_home = os.path.join(self.app_support, "colima")
+        self.info_plist = os.path.join(self.contents_dir, "Info.plist")
+
+        # Get version from Info.plist
+        self.version = self.get_version()
 
         # Set up bundled binaries environment
         os.environ["PATH"] = f"{self.bin_dir}:{os.environ.get('PATH', '')}"
@@ -48,6 +54,11 @@ class OnionPressApp(rumps.App):
             rumps.MenuItem("Restart", callback=self.restart_service),
             rumps.separator,
             rumps.MenuItem("View Logs", callback=self.view_logs),
+            rumps.MenuItem("Settings...", callback=self.open_settings),
+            rumps.separator,
+            rumps.MenuItem("Check for Updates...", callback=self.check_for_updates),
+            rumps.MenuItem("About onion.press", callback=self.show_about),
+            rumps.MenuItem("Uninstall...", callback=self.uninstall),
         ]
 
         # Ensure Docker is available
@@ -265,6 +276,127 @@ class OnionPressApp(rumps.App):
             subprocess.run(["open", "-a", "Console", log_file])
         else:
             rumps.alert("No logs available yet")
+
+    def get_version(self):
+        """Get version from Info.plist"""
+        try:
+            with open(self.info_plist, 'rb') as f:
+                plist = plistlib.load(f)
+                return plist.get('CFBundleShortVersionString', 'Unknown')
+        except:
+            return 'Unknown'
+
+    @rumps.clicked("Settings...")
+    def open_settings(self, _):
+        """Open config file in default text editor"""
+        config_file = os.path.join(self.app_support, "config")
+
+        # Create default config if it doesn't exist
+        if not os.path.exists(config_file):
+            config_template = os.path.join(self.resources_dir, "config-template.txt")
+            if os.path.exists(config_template):
+                subprocess.run(["cp", config_template, config_file])
+
+        if os.path.exists(config_file):
+            subprocess.run(["open", "-t", config_file])
+        else:
+            rumps.alert("Settings file not found")
+
+    @rumps.clicked("Check for Updates...")
+    def check_for_updates(self, _):
+        """Check GitHub for newer versions"""
+        try:
+            # Fetch latest release from GitHub
+            url = "https://api.github.com/repos/brewsterkahle/onion.press/releases/latest"
+            req = urllib.request.Request(url)
+            req.add_header('User-Agent', 'onion.press')
+
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read())
+                latest_version = data.get('tag_name', '').lstrip('v')
+                current_version = self.version
+
+                if latest_version and latest_version > current_version:
+                    response = rumps.alert(
+                        title="Update Available",
+                        message=f"A new version of onion.press is available!\n\nCurrent: v{current_version}\nLatest: v{latest_version}\n\nWould you like to download it?",
+                        ok="Download Update",
+                        cancel="Later"
+                    )
+                    if response == 1:  # OK clicked
+                        release_url = data.get('html_url', 'https://github.com/brewsterkahle/onion.press/releases/latest')
+                        subprocess.run(["open", release_url])
+                else:
+                    rumps.alert(
+                        title="No Updates Available",
+                        message=f"You're running the latest version (v{current_version})"
+                    )
+        except Exception as e:
+            rumps.alert(
+                title="Update Check Failed",
+                message=f"Could not check for updates.\n\nPlease visit:\nhttps://github.com/brewsterkahle/onion.press/releases"
+            )
+
+    @rumps.clicked("About onion.press")
+    def show_about(self, _):
+        """Show about dialog"""
+        about_text = f"""onion.press v{self.version}
+
+Easy-to-install WordPress with Tor Hidden Service for macOS
+
+Features:
+• Tor Hidden Service with vanity addresses (op2*)
+• Internet Archive Wayback Machine integration
+• Bundled container runtime (no Docker needed)
+• Privacy-first design
+
+Created by Brewster Kahle
+License: AGPL v3
+
+GitHub: github.com/brewsterkahle/onion.press"""
+
+        rumps.alert(title="About onion.press", message=about_text)
+
+    @rumps.clicked("Uninstall...")
+    def uninstall(self, _):
+        """Guide user through uninstallation"""
+        response = rumps.alert(
+            title="Uninstall onion.press",
+            message="This will guide you through removing onion.press from your system.\n\nYour WordPress data and onion address will be permanently deleted.\n\nContinue?",
+            ok="Continue",
+            cancel="Cancel"
+        )
+
+        if response == 1:  # OK clicked
+            # Stop services first
+            subprocess.run([self.launcher_script, "stop"], capture_output=True)
+
+            # Show uninstall instructions
+            instructions = """To complete uninstallation:
+
+1. Quit onion.press (it will quit automatically)
+2. Move onion.press.app to Trash
+3. Open Terminal and run these commands:
+
+   # Remove data directory
+   rm -rf ~/.onion.press
+
+   # Remove Docker volumes
+   docker volume rm onionpress-tor-keys
+   docker volume rm onionpress-wordpress-data
+   docker volume rm onionpress-db-data
+
+These commands have been copied to your clipboard."""
+
+            # Copy commands to clipboard
+            commands = """rm -rf ~/.onion.press
+docker volume rm onionpress-tor-keys onionpress-wordpress-data onionpress-db-data"""
+            subprocess.run(["pbcopy"], input=commands.encode(), check=True)
+
+            rumps.alert(title="Uninstall Instructions", message=instructions)
+
+            # Quit the app
+            rumps.quit_application()
 
     def quit_callback(self, _):
         """Called when user selects Quit from the menu (overrides default rumps quit)"""
