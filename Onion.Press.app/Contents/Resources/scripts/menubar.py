@@ -259,13 +259,19 @@ class OnionPressApp(rumps.App):
 
             docker_bin = os.path.join(self.bin_dir, "docker")
 
+            # Set up environment for docker commands
+            docker_env = os.environ.copy()
+            docker_env["DOCKER_HOST"] = f"unix://{self.colima_home}/default/docker.sock"
+            docker_env["DOCKER_CONFIG"] = os.path.join(os.path.expanduser("~/.onion.press"), "docker-config")
+
             # Check 1: Verify hostname file exists and matches
             result = subprocess.run(
                 [docker_bin, "exec", "onionpress-tor",
                  "cat", "/var/lib/tor/hidden_service/wordpress/hostname"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                env=docker_env
             )
 
             if result.returncode != 0:
@@ -284,7 +290,8 @@ class OnionPressApp(rumps.App):
                 [docker_bin, "logs", "--tail", "50", "onionpress-tor"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                env=docker_env
             )
 
             if "Bootstrapped 100% (done)" not in result.stdout:
