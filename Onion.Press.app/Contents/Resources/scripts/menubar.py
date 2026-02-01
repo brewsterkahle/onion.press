@@ -4,6 +4,11 @@ onion.press Menu Bar Application
 Provides a simple menu bar interface to control the WordPress + Tor service
 """
 
+# Set activation policy BEFORE importing rumps to prevent dock icon
+import AppKit
+app = AppKit.NSApplication.sharedApplication()
+app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
+
 import rumps
 import subprocess
 import os
