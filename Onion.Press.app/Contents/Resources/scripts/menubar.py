@@ -95,6 +95,8 @@ class OnionPressApp(rumps.App):
         self.checking = False
         self.web_log_process = None  # Background process for web logs
         self.last_status_logged = None  # Track last logged status to avoid spam
+        self.auto_opened_browser = False  # Track if we've auto-opened browser this session
+        self.setup_dialog_process = None  # Track setup dialog process to dismiss it later
 
         # Menu items
         self.menu = [
@@ -378,6 +380,14 @@ class OnionPressApp(rumps.App):
                     self.log("✓ System fully operational - reducing check frequency")
                     self.last_status_logged = current_status
 
+                    # Dismiss setup dialog if it's showing
+                    self.dismiss_setup_dialog()
+
+                    # Auto-open Tor Browser on first ready (if installed)
+                    if not self.auto_opened_browser:
+                        self.auto_opened_browser = True
+                        threading.Thread(target=self.auto_open_browser, daemon=True).start()
+
                 # Start web log capture if not already running
                 if self.web_log_process is None:
                     threading.Thread(target=self.start_web_log_capture, daemon=True).start()
@@ -389,6 +399,10 @@ class OnionPressApp(rumps.App):
 
                 self.onion_address = "Not running"
                 self.is_ready = False
+                self.auto_opened_browser = False  # Reset for next start
+
+                # Dismiss setup dialog if showing
+                self.dismiss_setup_dialog()
 
                 # Stop web log capture if running
                 if self.web_log_process is not None:
@@ -475,6 +489,23 @@ class OnionPressApp(rumps.App):
         else:
             rumps.alert("Onion address not available yet. Please wait for the service to start.")
 
+    def auto_open_browser(self):
+        """Automatically open Tor Browser when service becomes ready"""
+        if self.onion_address and self.onion_address not in ["Starting...", "Not running", "Generating address..."]:
+            tor_browser_path = "/Applications/Tor Browser.app"
+
+            if os.path.exists(tor_browser_path):
+                url = f"http://{self.onion_address}"
+                self.log(f"Auto-opening Tor Browser: {url}")
+                subprocess.run(["open", "-a", "Tor Browser", url])
+            else:
+                self.log("Tor Browser not installed - showing download notification")
+                rumps.notification(
+                    title="Tor Browser Suggested",
+                    subtitle="Download Tor or Brave Browser to access your site",
+                    message=f"Your site is ready at {self.onion_address}"
+                )
+
     @rumps.clicked("Start")
     def start_service(self, _):
         """Start the WordPress + Tor service"""
@@ -494,9 +525,9 @@ class OnionPressApp(rumps.App):
                 # First run if we don't have wordpress/mysql/tor images
                 if not any('wordpress' in img for img in images):
                     first_run = True
-                    self.show_notification("Downloading container images (2-5 min)...",
-                                         "This happens once on first launch")
-                    self.log("First run detected - will monitor image downloads")
+                    self.log("First run detected - will show setup dialog and monitor image downloads")
+                    # Show persistent setup dialog
+                    self.show_setup_dialog()
             except:
                 pass
 
@@ -784,6 +815,47 @@ Store them in a safe place - you can use them to restore your onion address on a
         except:
             pass
 
+    def show_setup_dialog(self):
+        """Show a persistent setup dialog during first run that stays until service is ready"""
+        try:
+            # Dismiss any existing dialog first
+            self.dismiss_setup_dialog()
+
+            # Show dialog with a very long timeout (30 minutes) that we'll dismiss programmatically
+            # This runs in the background so it doesn't block
+            script = '''
+                tell application "System Events"
+                    activate
+                    display dialog "Setting up onion.press for first use...
+
+Downloading container images (2-5 minutes)
+
+This window will close automatically when your site is ready." buttons {"OK"} default button "OK" with icon file ((path to application "onion.press") as text) with title "onion.press Setup" giving up after 1800
+                end tell
+            '''
+            self.setup_dialog_process = subprocess.Popen(
+                ["osascript", "-e", script],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            self.log("Setup dialog shown")
+        except Exception as e:
+            self.log(f"Error showing setup dialog: {e}")
+
+    def dismiss_setup_dialog(self):
+        """Dismiss the setup dialog if it's showing"""
+        if self.setup_dialog_process is not None:
+            try:
+                self.setup_dialog_process.terminate()
+                self.setup_dialog_process.wait(timeout=2)
+                self.log("Setup dialog dismissed")
+            except:
+                try:
+                    self.setup_dialog_process.kill()
+                except:
+                    pass
+            self.setup_dialog_process = None
+
     def monitor_image_downloads(self):
         """Monitor Docker image downloads and show progress notifications"""
         images_to_check = {
@@ -862,6 +934,9 @@ GitHub: github.com/brewsterkahle/onion.press"""
 
         if response == 1:  # OK clicked
             try:
+                # Dismiss setup dialog if showing
+                self.dismiss_setup_dialog()
+
                 # Step 1: Stop services
                 self.log("Uninstall: Stopping services...")
                 subprocess.run([self.launcher_script, "stop"], capture_output=True, timeout=30)
@@ -924,6 +999,8 @@ GitHub: github.com/brewsterkahle/onion.press"""
             cancel="Cancel"
         )
         if response == 1:  # OK clicked
+            # Dismiss setup dialog if showing
+            self.dismiss_setup_dialog()
             # Stop web log capture
             self.stop_web_log_capture()
             # Stop services before quitting
