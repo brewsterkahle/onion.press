@@ -24,9 +24,15 @@ Full resolution source images for the onion.press brand.
 
 ### `icon-menubar.png`
 - **Size**: High resolution (transparent background)
-- **Use**: Menu bar icon source (tighter crop, enhanced detail)
+- **Use**: Menu bar icon (processed version)
 - **Purpose**: macOS menu bar display, system tray icons
 - **Style**: Polished onion character with improved shading and vibrant colors
+
+### `icon-menubar-source.png`
+- **Size**: 761x895px (RGBA transparent)
+- **Use**: Original source file for menubar icon
+- **Purpose**: Master file for generating menubar icons at different sizes
+- **Style**: High-quality onion character with full transparency, enhanced detail and vibrant colors
 
 ## Design Notes
 
