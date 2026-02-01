@@ -6,7 +6,7 @@
 
 **Easy-to-install WordPress with Tor Hidden Service for macOS**
 
-> **Current Version: 2.0.7** - Now with vanity onion addresses and key backup!
+> **Current Version: 2.0.8** - Now with vanity onion addresses and key backup!
 
 onion.press is a macOS application that bundles WordPress with a Tor hidden service, allowing you to run a WordPress blog accessible only through the Tor network.
 
@@ -31,8 +31,8 @@ onion.press is a macOS application that bundles WordPress with a Tor hidden serv
 ## Installation
 
 1. Download the latest `onion.press.dmg` from the [releases page](https://github.com/brewsterkahle/onion.press/releases)
-2. Open the DMG and drag `onion.press.app` to your Applications folder
-3. Launch onion.press from Applications
+2. Open the DMG and drag `Onion.Press.app` to your Applications folder
+3. Launch Onion.Press from Applications
 4. On first launch:
    - The app will generate your vanity onion address (starting with "op2") - takes < 1 second
    - The app will initialize its bundled container runtime (Colima) - takes ~2-3 minutes
@@ -169,8 +169,8 @@ rm -rf ~/.onion.press
 ## Uninstalling
 
 1. Stop the service from the menu bar app
-2. Quit onion.press
-3. Move `onion.press.app` to Trash
+2. Quit Onion.Press
+3. Move `Onion.Press.app` to Trash
 4. Remove data directory: `rm -rf ~/.onion.press`
 5. Remove Docker volumes:
    ```bash

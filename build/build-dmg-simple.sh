@@ -10,7 +10,7 @@ echo "Building onion.press DMG installer (simple mode)..."
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_DIR/build"
-APP_PATH="$PROJECT_DIR/onion.press.app"
+APP_PATH="$PROJECT_DIR/Onion.Press.app"
 DMG_NAME="onion.press.dmg"
 DMG_PATH="$BUILD_DIR/$DMG_NAME"
 
@@ -19,7 +19,7 @@ echo "App path: $APP_PATH"
 
 # Check if app bundle exists
 if [ ! -d "$APP_PATH" ]; then
-    echo "ERROR: onion.press.app not found at $APP_PATH"
+    echo "ERROR: Onion.Press.app not found at $APP_PATH"
     exit 1
 fi
 
@@ -197,8 +197,8 @@ cat > "$TEMP_DIR/README.txt" <<EOF
 onion.press - WordPress + Tor Hidden Service
 
 INSTALLATION:
-1. Drag onion.press.app to the Applications folder
-2. Open onion.press from Applications
+1. Drag Onion.Press.app to the Applications folder
+2. Open Onion.Press from Applications
 3. Follow the on-screen setup instructions
 
 REQUIREMENTS:
@@ -255,6 +255,6 @@ echo "   Size: $FINAL_SIZE"
 echo ""
 echo "To test the DMG:"
 echo "   1. Open the DMG: open '$DMG_PATH'"
-echo "   2. Drag onion.press.app to Applications"
+echo "   2. Drag Onion.Press.app to Applications"
 echo "   3. Launch from Applications folder"
 echo ""

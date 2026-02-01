@@ -2,6 +2,13 @@
 
 All notable changes to onion.press will be documented in this file.
 
+## [2.0.8] - 2026-01-31
+
+### Changed
+- **Application name capitalized** - App bundle renamed from `onion.press.app` to `Onion.Press.app`
+- Updated all dialog titles, notifications, and menu items to use "Onion.Press" branding
+- Better visual consistency with proper capitalization throughout the interface
+
 ## [2.0.7] - 2026-01-31
 
 ### Changed

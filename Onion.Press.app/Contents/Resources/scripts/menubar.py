@@ -71,7 +71,7 @@ class OnionPressApp(rumps.App):
             rumps.MenuItem("Import Private Key...", callback=self.import_key),
             rumps.separator,
             rumps.MenuItem("Check for Updates...", callback=self.check_for_updates),
-            rumps.MenuItem("About onion.press", callback=self.show_about),
+            rumps.MenuItem("About Onion.Press", callback=self.show_about),
             rumps.MenuItem("Uninstall...", callback=self.uninstall),
             rumps.separator,
             rumps.MenuItem("Quit", callback=self.quit_app),
@@ -215,7 +215,7 @@ class OnionPressApp(rumps.App):
                 check=True
             )
             rumps.notification(
-                title="onion.press",
+                title="Onion.Press",
                 subtitle="Address Copied",
                 message=f"Copied {self.onion_address} to clipboard"
             )
@@ -469,10 +469,10 @@ Store them in a safe place - you can use them to restore your onion address on a
                 message=f"Could not check for updates.\n\nPlease visit:\nhttps://github.com/brewsterkahle/onion.press/releases"
             )
 
-    @rumps.clicked("About onion.press")
+    @rumps.clicked("About Onion.Press")
     def show_about(self, _):
         """Show about dialog"""
-        about_text = f"""onion.press v{self.version}
+        about_text = f"""Onion.Press v{self.version}
 
 Easy-to-install WordPress with Tor Hidden Service for macOS
 
@@ -487,14 +487,14 @@ License: AGPL v3
 
 GitHub: github.com/brewsterkahle/onion.press"""
 
-        rumps.alert(title="About onion.press", message=about_text)
+        rumps.alert(title="About Onion.Press", message=about_text)
 
     @rumps.clicked("Uninstall...")
     def uninstall(self, _):
         """Guide user through uninstallation"""
         response = rumps.alert(
-            title="Uninstall onion.press",
-            message="This will guide you through removing onion.press from your system.\n\nYour WordPress data and onion address will be permanently deleted.\n\nContinue?",
+            title="Uninstall Onion.Press",
+            message="This will guide you through removing Onion.Press from your system.\n\nYour WordPress data and onion address will be permanently deleted.\n\nContinue?",
             ok="Continue",
             cancel="Cancel"
         )
@@ -506,8 +506,8 @@ GitHub: github.com/brewsterkahle/onion.press"""
             # Show uninstall instructions
             instructions = """To complete uninstallation:
 
-1. Quit onion.press (it will quit automatically)
-2. Move onion.press.app to Trash
+1. Quit Onion.Press (it will quit automatically)
+2. Move Onion.Press.app to Trash
 3. Open Terminal and run these commands:
 
    # Remove data directory
@@ -534,7 +534,7 @@ docker volume rm onionpress-tor-keys onionpress-wordpress-data onionpress-db-dat
     def quit_app(self, _):
         """Quit the application"""
         response = rumps.alert(
-            title="Quit onion.press?",
+            title="Quit Onion.Press?",
             message="This will stop the WordPress service. Are you sure?",
             ok="Quit",
             cancel="Cancel"
