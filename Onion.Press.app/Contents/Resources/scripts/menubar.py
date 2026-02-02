@@ -1346,22 +1346,42 @@ end tell
     @rumps.clicked("Quit")
     def quit_app(self, _):
         """Quit the application"""
-        response = rumps.alert(
-            title="Quit Onion.Press?",
-            message="This will stop the WordPress service. Are you sure?",
-            ok="Quit",
-            cancel="Cancel"
-        )
-        if response == 1:  # OK clicked
-            # Dismiss setup dialog if showing
-            self.dismiss_setup_dialog()
-            # Stop web log capture
-            self.stop_web_log_capture()
-            # Stop services before quitting
-            subprocess.run([self.launcher_script, "stop"])
-            # Quit Console.app if it's running (so it releases the log file)
-            subprocess.run(["osascript", "-e", 'quit app "Console"'], capture_output=True)
-            rumps.quit_application()
+        # Use osascript to show dialog with custom icon
+        icon_path = os.path.join(self.resources_dir, "app-icon.png")
+        try:
+            result = subprocess.run(["osascript", "-e", f'''
+tell application "System Events"
+    activate
+    set userChoice to button returned of (display dialog "This will stop the WordPress service. Are you sure?" buttons {{"Cancel", "Quit"}} default button "Cancel" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Quit Onion.Press?")
+    return userChoice
+end tell
+'''], capture_output=True, text=True, timeout=60)
+
+            # Check if user clicked Quit
+            if result.returncode != 0 or "Quit" not in result.stdout:
+                return  # User cancelled
+        except Exception as e:
+            # Fallback to rumps if osascript fails
+            self.log(f"Quit dialog osascript failed: {e}")
+            response = rumps.alert(
+                title="Quit Onion.Press?",
+                message="This will stop the WordPress service. Are you sure?",
+                ok="Quit",
+                cancel="Cancel"
+            )
+            if response != 1:  # OK not clicked
+                return
+
+        # User confirmed quit
+        # Dismiss setup dialog if showing
+        self.dismiss_setup_dialog()
+        # Stop web log capture
+        self.stop_web_log_capture()
+        # Stop services before quitting
+        subprocess.run([self.launcher_script, "stop"])
+        # Quit Console.app if it's running (so it releases the log file)
+        subprocess.run(["osascript", "-e", 'quit app "Console"'], capture_output=True)
+        rumps.quit_application()
 
 if __name__ == "__main__":
     OnionPressApp().run()
