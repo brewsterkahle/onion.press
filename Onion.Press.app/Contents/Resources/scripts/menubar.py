@@ -1184,13 +1184,15 @@ end tell
         """Show about dialog"""
         about_text = f"""Onion.Press v{self.version}
 
-Easy-to-install WordPress with Tor Onion Service for macOS
+Easy and free self-hosted web server for macOS
+WordPress + Tor Onion Service
 
 Features:
 • Tor Onion Service with vanity addresses (op2*)
 • Internet Archive Wayback Machine integration
 • Bundled container runtime (no Docker needed)
 • Privacy-first design
+• Free and open source
 
 Created by Brewster Kahle
 License: AGPL v3
