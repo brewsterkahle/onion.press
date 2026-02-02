@@ -61,10 +61,22 @@ if (!is_plugin_active('{plugin_path}')) {{
         )
 
         if result.returncode == 0:
-            print(result.stdout.decode().strip())
+            output = result.stdout.decode().strip()
+
+            # Check if output is HTML error (WordPress not ready)
+            if '<html' in output.lower() or 'error establishing' in output.lower():
+                print("WordPress database not ready yet - plugin will be activated after setup")
+                return True  # Not a failure, just not ready
+
+            print(output)
             return True
         else:
-            print(f"Plugin activation failed: {result.stderr.decode().strip()}", file=sys.stderr)
+            stderr = result.stderr.decode().strip()
+            # Don't log HTML errors
+            if '<html' not in stderr.lower():
+                print(f"Plugin activation failed: {stderr}", file=sys.stderr)
+            else:
+                print("WordPress not ready - plugin activation will retry", file=sys.stderr)
             return False
 
     except subprocess.TimeoutExpired:
