@@ -34,8 +34,6 @@ onion.press is a macOS application that bundles WordPress with a Tor onion servi
 
 ## Installation
 
-### Option 1: Direct Download (DMG)
-
 1. Download the latest `onion.press.dmg` from the [releases page](https://github.com/brewsterkahle/onion.press/releases)
 2. Open the DMG and drag `Onion.Press.app` to your Applications folder
 3. Launch Onion.Press from Applications
@@ -46,7 +44,7 @@ onion.press is a macOS application that bundles WordPress with a Tor onion servi
    - Total setup: 3-5 minutes depending on your internet connection
    - Subsequent launches are instant
 
-#### macOS Security Warning
+### macOS Security Warning
 
 Since this app is not code-signed with an Apple Developer certificate, macOS will show a security warning on first launch. This is normal for open-source software.
 
@@ -70,14 +68,6 @@ xattr -cr /Applications/Onion.Press.app
 ```
 
 This removes macOS's quarantine attribute and allows the app to launch without warnings.
-
-### Option 2: Homebrew
-
-```bash
-brew install --cask onion-press
-```
-
-Note: The Homebrew installation still requires approving the security prompt on first launch (see methods above).
 
 ## Usage
 
