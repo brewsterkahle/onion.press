@@ -1365,7 +1365,7 @@ end tell
             self.log(f"Final confirmation result: {result.stdout}")
 
             # Check if user typed "DELETE" (case insensitive)
-            if result.returncode != 0 or "DELETE" not in result.stdout.upper():
+            if result.returncode != 0 or result.stdout.strip().upper() != "DELETE":
                 rumps.alert(
                     title="Uninstall Cancelled",
                     message="Uninstall cancelled. Type 'DELETE' to confirm."

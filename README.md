@@ -6,7 +6,7 @@
 
 **Easy and free self-hosted web server for macOS**
 
-> **Current Version: 2.2.2** - Critical bug fix release: resolves app crashes and missing dependencies!
+> **Current Version: 2.2.3** - Critical bug fix: resolves database connection error
 
 onion.press is a macOS application that bundles WordPress with a Tor onion service, giving you an easy and free self-hosted web server accessible only through the Tor network.
 
