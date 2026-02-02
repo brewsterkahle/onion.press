@@ -13,6 +13,8 @@ onion.press is a macOS application that bundles WordPress with a Tor onion servi
 ## Features
 
 - 🧅 **Tor Onion Service**: Your WordPress site is automatically configured as a Tor onion service
+- 🔐 **End-to-End Encrypted**: Built-in encryption without needing HTTPS certificates or SSL setup
+- 🌐 **No DNS Registration Needed**: Your .onion address works immediately - no domain registration, no DNS configuration
 - ✨ **Vanity Onion Addresses**: All installations generate addresses starting with "op2" for easy identification
 - 📚 **Internet Archive Integration**: Automatically installs the [Wayback Machine Link Fixer](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/) plugin to combat link rot
 - 🐳 **Container-Based**: Uses Docker containers for easy management and isolation
