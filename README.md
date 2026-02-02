@@ -173,6 +173,38 @@ INSTALL_IA_PLUGIN=no
 
 For increased daily link processing, you can add your free Archive.org API credentials in the plugin settings after setup.
 
+### Recommended WordPress Plugins for Tor Onion Services
+
+These plugins are optimized for the Tor network's slower speeds and privacy-focused audience:
+
+#### Performance & Optimization (Essential for Tor)
+
+- **[WP Super Cache](https://wordpress.org/plugins/wp-super-cache/)** or **[W3 Total Cache](https://wordpress.org/plugins/w3-total-cache/)** - Critical for caching to improve response times over Tor's slower connections
+- **[Autoptimize](https://wordpress.org/plugins/autoptimize/)** - Minifies and concatenates CSS/JavaScript to reduce HTTP requests and data transfer
+- **[EWWW Image Optimizer](https://wordpress.org/plugins/ewww-image-optimizer/)** - Compresses images locally without cloud dependencies
+- **[Lazy Load](https://wordpress.org/plugins/rocket-lazy-load/)** - Only loads images when scrolling, reducing initial page load time
+
+#### Privacy & Self-Hosted Alternatives
+
+- **[Simple Local Avatars](https://wordpress.org/plugins/simple-local-avatars/)** - Replaces Gravatar with local avatars (no external service calls)
+- **[Koko Analytics](https://wordpress.org/plugins/koko-analytics/)** - Privacy-friendly, cookieless analytics (self-hosted, GDPR-compliant)
+- **[Simple Location](https://wordpress.org/plugins/simple-location/)** - Uses OpenStreetMap instead of Google Maps
+- **[ActivityPub](https://wordpress.org/plugins/activitypub/)** - Connect your WordPress site to the Fediverse for decentralized social networking
+
+#### Security & Anti-Spam
+
+- **[WP Cerber Security](https://wordpress.org/plugins/wp-cerber/)** or **[Wordfence Security](https://wordpress.org/plugins/wordfence/)** - Rate limiting and login protection
+- **[CleanTalk](https://wordpress.org/plugins/cleantalk-spam-protect/)** - Effective spam protection that works well with Tor users
+- **[Math Captcha](https://wordpress.org/plugins/wp-math-captcha/)** - Self-hosted CAPTCHA alternative (avoid Google reCAPTCHA which blocks many Tor users)
+- **[Disable Comments](https://wordpress.org/plugins/disable-comments/)** - Reduces spam attack surface if comments aren't needed
+
+#### Content Security
+
+- **[HTTP Headers](https://wordpress.org/plugins/http-headers/)** - Add security headers and control referrer policies
+- **[Content Security Policy Manager](https://wordpress.org/plugins/content-security-policy-manager/)** - Prevents loading of external resources for better security
+
+**Installation tip**: Install these plugins through the WordPress admin interface after completing initial setup. Focus on performance plugins first to optimize for Tor's network characteristics.
+
 ### Local Testing
 
 For testing purposes, your WordPress site is also available at:
