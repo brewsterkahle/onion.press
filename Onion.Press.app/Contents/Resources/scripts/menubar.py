@@ -126,6 +126,9 @@ class OnionPressApp(rumps.App):
         # Ensure Docker is available
         threading.Thread(target=self.ensure_docker_available, daemon=True).start()
 
+        # Sync launch on login setting
+        threading.Thread(target=self.sync_launch_on_login, daemon=True).start()
+
         # Start status checker
         self.start_status_checker()
 
@@ -243,6 +246,122 @@ class OnionPressApp(rumps.App):
             self.update_docker_images(show_notifications=False)
 
         self.start_service(None)
+
+    def is_login_item(self):
+        """Check if app is currently in login items"""
+        try:
+            app_path = os.path.dirname(os.path.dirname(os.path.dirname(self.script_dir)))
+
+            # Use osascript to check login items
+            script = f'''
+tell application "System Events"
+    get the name of every login item
+end tell
+'''
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0:
+                login_items = result.stdout.strip()
+                # Check if Onion.Press or onion.press is in the list
+                return "Onion.Press" in login_items or "onion.press" in login_items
+
+            return False
+        except Exception as e:
+            self.log(f"Error checking login items: {e}")
+            return False
+
+    def add_login_item(self):
+        """Add app to login items"""
+        try:
+            app_path = os.path.dirname(os.path.dirname(os.path.dirname(self.script_dir)))
+
+            script = f'''
+tell application "System Events"
+    make new login item at end with properties {{path:"{app_path}", hidden:false}}
+end tell
+'''
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0:
+                self.log("Added to login items")
+                return True
+            else:
+                self.log(f"Failed to add to login items: {result.stderr}")
+                return False
+        except Exception as e:
+            self.log(f"Error adding login item: {e}")
+            return False
+
+    def remove_login_item(self):
+        """Remove app from login items"""
+        try:
+            script = '''
+tell application "System Events"
+    delete (every login item whose name is "Onion.Press" or name is "onion.press")
+end tell
+'''
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0:
+                self.log("Removed from login items")
+                return True
+            else:
+                self.log(f"Failed to remove from login items: {result.stderr}")
+                return False
+        except Exception as e:
+            self.log(f"Error removing login item: {e}")
+            return False
+
+    def sync_launch_on_login(self):
+        """Sync LAUNCH_ON_LOGIN config with macOS login items"""
+        time.sleep(2)  # Brief delay to let app initialize
+
+        try:
+            # Read config
+            config_file = os.path.join(self.app_support, "config")
+            launch_on_login_enabled = False
+
+            if os.path.exists(config_file):
+                try:
+                    with open(config_file, 'r') as f:
+                        for line in f:
+                            if line.startswith('LAUNCH_ON_LOGIN='):
+                                value = line.split('=', 1)[1].strip().lower()
+                                launch_on_login_enabled = (value == 'yes')
+                                break
+                except:
+                    pass
+
+            # Check current system state
+            is_currently_login_item = self.is_login_item()
+
+            # Sync if needed
+            if launch_on_login_enabled and not is_currently_login_item:
+                self.log("LAUNCH_ON_LOGIN=yes but not in login items - adding...")
+                self.add_login_item()
+            elif not launch_on_login_enabled and is_currently_login_item:
+                self.log("LAUNCH_ON_LOGIN=no but in login items - removing...")
+                self.remove_login_item()
+            else:
+                self.log(f"Launch on login state synced (enabled={launch_on_login_enabled})")
+
+        except Exception as e:
+            self.log(f"Error syncing launch on login: {e}")
 
     def run_command(self, command):
         """Run a command and return output"""

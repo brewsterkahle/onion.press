@@ -47,3 +47,14 @@ INSTALL_IA_PLUGIN=yes
 # Note: Updates only occur when containers are stopped.
 #
 UPDATE_ON_LAUNCH=no
+
+# Launch on Login
+# Default: "no" (manual launch required)
+#
+# When enabled, Onion.Press will automatically start when you log in to macOS.
+# The app will appear in your menu bar and your WordPress site will start automatically.
+#
+# Set to "yes" to launch on login.
+# Note: You can also manage this in System Settings → General → Login Items
+#
+LAUNCH_ON_LOGIN=no

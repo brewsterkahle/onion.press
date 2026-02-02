@@ -111,6 +111,22 @@ When enabled, onion.press will check for and download updated container images e
 
 **Note**: After updating container images, restart the service from the menu bar to apply updates.
 
+### Launch on Login
+
+Have your WordPress site start automatically when you log in to macOS by editing `~/.onion.press/config`:
+```bash
+LAUNCH_ON_LOGIN=yes
+```
+
+When enabled:
+- Onion.Press automatically launches when you log in
+- Your WordPress site starts automatically in the background
+- The menu bar app appears and shows your status
+
+The app automatically syncs this setting with macOS login items. You can also manage this in **System Settings → General → Login Items**.
+
+**Default**: Disabled (manual launch required)
+
 ### Accessing Your Site
 
 1. Your onion address is displayed in the menu bar dropdown (starts with "op2" for easy identification)

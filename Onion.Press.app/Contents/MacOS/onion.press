@@ -44,6 +44,7 @@ if [ ! -f "$DATA_DIR/config" ]; then
 VANITY_PREFIX=op2
 INSTALL_IA_PLUGIN=yes
 UPDATE_ON_LAUNCH=no
+LAUNCH_ON_LOGIN=no
 EOF
     fi
 fi
