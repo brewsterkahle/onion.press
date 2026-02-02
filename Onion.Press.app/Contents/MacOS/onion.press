@@ -70,6 +70,45 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# Function to generate and load database passwords
+setup_db_passwords() {
+    local secrets_file="$DATA_DIR/secrets"
+
+    # Create secrets file if it doesn't exist
+    if [ ! -f "$secrets_file" ]; then
+        log "Generating random database passwords..."
+
+        # Generate random 32-character passwords using /dev/urandom
+        local wordpress_pass=$(LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 32)
+        local root_pass=$(LC_ALL=C tr -dc 'A-Za-z0-9!@#$%^&*' < /dev/urandom | head -c 32)
+
+        # Write passwords to secrets file with restricted permissions
+        touch "$secrets_file"
+        chmod 600 "$secrets_file"
+
+        cat > "$secrets_file" <<EOF
+# Database passwords - generated on $(date)
+# DO NOT SHARE THESE PASSWORDS
+WORDPRESS_DB_PASSWORD=$wordpress_pass
+MYSQL_PASSWORD=$wordpress_pass
+MYSQL_ROOT_PASSWORD=$root_pass
+EOF
+
+        log "Database passwords generated and saved to $secrets_file"
+    fi
+
+    # Load passwords from secrets file
+    if [ -f "$secrets_file" ]; then
+        source "$secrets_file"
+        export WORDPRESS_DB_PASSWORD
+        export MYSQL_PASSWORD
+        export MYSQL_ROOT_PASSWORD
+    else
+        log "ERROR: Secrets file not found at $secrets_file"
+        exit 1
+    fi
+}
+
 # Function to detect container runtime
 detect_container_runtime() {
     # Use bundled Colima
@@ -155,32 +194,15 @@ install_ia_plugin() {
 
     cd "$DOCKER_DIR"
 
-    # Check if plugin is already active
+    # Check if plugin is already installed
     if docker compose exec -T wordpress test -f /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php 2>/dev/null; then
-        # Plugin is installed, check if WordPress is configured and activate if needed
-        if docker compose exec -T wordpress test -f /var/www/html/wp-config.php 2>/dev/null; then
-            # Check if plugin is activated in the database (look for active_plugins option)
-            if docker compose exec -T wordpress grep -q "internet-archive-wayback-machine-link-fixer" /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php 2>/dev/null; then
-                # Try to activate using wp-cli by injecting it into the container
-                log "Attempting to activate Internet Archive plugin..."
-                docker compose exec -T wordpress bash -c '
-                    if [ -f /var/www/html/wp-config.php ]; then
-                        # Create a simple PHP script to activate the plugin
-                        cat > /tmp/activate-plugin.php << '\''EOFPHP'\''
-<?php
-define('\''WP_USE_THEMES'\'', false);
-require_once('\''/var/www/html/wp-load.php'\'');
-if (!is_plugin_active('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'')) {
-    activate_plugin('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'');
-    echo "Plugin activated\n";
-} else {
-    echo "Plugin already active\n";
-}
-EOFPHP
-                        php /tmp/activate-plugin.php 2>/dev/null && rm /tmp/activate-plugin.php
-                    fi
-                ' >>"$LOG_FILE" 2>&1 && log "✓ Internet Archive Wayback Machine Link Fixer plugin is active" || log "Plugin installed, activate it in WordPress admin after setup"
-            fi
+        # Plugin is installed, try to activate if WordPress is configured
+        log "Internet Archive plugin already installed, checking activation status..."
+        if python3 "$SCRIPTS_DIR/activate_plugin.py" "onionpress-wordpress" \
+            "internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php" >>"$LOG_FILE" 2>&1; then
+            log "✓ Internet Archive Wayback Machine Link Fixer plugin is active"
+        else
+            log "Plugin will auto-activate after WordPress setup"
         fi
         return 0
     fi
@@ -190,40 +212,26 @@ EOFPHP
     # Create temp directory for plugin download
     local temp_dir=$(mktemp -d)
 
-    # Download and extract plugin
-    if curl -sS -L -o "$temp_dir/ia-plugin.zip" https://downloads.wordpress.org/plugin/internet-archive-wayback-machine-link-fixer.latest-stable.zip 2>>"$LOG_FILE"; then
-        cd "$temp_dir"
-        if unzip -q ia-plugin.zip 2>>"$LOG_FILE"; then
-            # Copy plugin to WordPress container
-            if docker cp internet-archive-wayback-machine-link-fixer onionpress-wordpress:/var/www/html/wp-content/plugins/ 2>>"$LOG_FILE" && \
-                cd "$DOCKER_DIR" && \
-                docker compose exec -T wordpress chown -R www-data:www-data /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer 2>>"$LOG_FILE"; then
-                log "✓ Internet Archive Wayback Machine Link Fixer plugin installed!"
+    # Download and verify plugin using Python script with checksum verification
+    if python3 "$SCRIPTS_DIR/install_plugin.py" "internet-archive-wayback-machine-link-fixer" "$temp_dir" >>"$LOG_FILE" 2>&1; then
+        # Copy plugin to WordPress container
+        if docker cp "$temp_dir/internet-archive-wayback-machine-link-fixer" onionpress-wordpress:/var/www/html/wp-content/plugins/ 2>>"$LOG_FILE" && \
+            cd "$DOCKER_DIR" && \
+            docker compose exec -T wordpress chown -R www-data:www-data /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer 2>>"$LOG_FILE"; then
+            log "✓ Internet Archive Wayback Machine Link Fixer plugin installed with verified checksum!"
 
-                # Try to activate immediately if WordPress is configured
-                cd "$DOCKER_DIR" && \
-                docker compose exec -T wordpress bash -c '
-                    if [ -f /var/www/html/wp-config.php ]; then
-                        cat > /tmp/activate-plugin.php << '\''EOFPHP'\''
-<?php
-define('\''WP_USE_THEMES'\'', false);
-require_once('\''/var/www/html/wp-load.php'\'');
-if (!is_plugin_active('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'')) {
-    activate_plugin('\''internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php'\'');
-    echo "Plugin activated\n";
-}
-EOFPHP
-                        php /tmp/activate-plugin.php 2>/dev/null && rm /tmp/activate-plugin.php
-                    fi
-                ' >>"$LOG_FILE" 2>&1 && log "✓ Plugin automatically activated!" || log "Plugin will auto-activate after WordPress setup"
+            # Try to activate immediately if WordPress is configured
+            if python3 "$SCRIPTS_DIR/activate_plugin.py" "onionpress-wordpress" \
+                "internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php" >>"$LOG_FILE" 2>&1; then
+                log "✓ Plugin automatically activated!"
             else
-                log "Failed to copy plugin to container"
+                log "Plugin will auto-activate after WordPress setup"
             fi
         else
-            log "Failed to extract plugin"
+            log "Failed to copy plugin to container"
         fi
     else
-        log "Failed to download plugin"
+        log "Failed to download and verify plugin - check log for details"
     fi
 
     # Clean up
@@ -388,6 +396,9 @@ main() {
                 fi
             fi
 
+            # Setup database passwords (generates random passwords on first run)
+            setup_db_passwords
+
             # Start containers
             start_containers
 
@@ -423,6 +434,7 @@ EOF
             ;;
 
         restart)
+            setup_db_passwords
             stop_containers
             sleep 2
             start_containers

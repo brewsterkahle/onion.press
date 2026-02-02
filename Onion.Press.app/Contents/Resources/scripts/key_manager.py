@@ -1,64 +1,79 @@
 #!/usr/bin/env python3
 """
 Key Management for onion.press
-Converts Tor v3 Ed25519 private keys to/from BIP39 mnemonic words
+Converts Tor v3 Ed25519 private keys to/from BIP39 mnemonic words with checksums
 """
 
 import subprocess
 import base64
-from bip39_words import BIP39_WORDLIST
+
+try:
+    from mnemonic import Mnemonic
+except ImportError:
+    print("ERROR: mnemonic library not installed. Installing...")
+    subprocess.run(['pip3', 'install', 'mnemonic'], check=True)
+    from mnemonic import Mnemonic
+
+# Initialize BIP39 mnemonic encoder with English wordlist
+mnemo = Mnemonic("english")
 
 def bytes_to_mnemonic(key_bytes):
     """
-    Convert bytes to BIP39 mnemonic words
-    For a 64-byte key, we need 512 bits / 11 bits per word = 46.545 words
-    We'll use 47 words (517 bits) and pad with zeros
+    Convert 64-byte Ed25519 key to BIP39 mnemonic words with proper checksums
+
+    Ed25519 keys are 64 bytes (512 bits). We split this into two 32-byte chunks:
+    - First 32 bytes → 24-word mnemonic (with checksum)
+    - Second 32 bytes → 24-word mnemonic (with checksum)
+    Total: 48 words with proper BIP39 checksums for validation
     """
-    # Convert bytes to bits
-    bits = ''.join(format(byte, '08b') for byte in key_bytes)
+    if len(key_bytes) != 64:
+        raise ValueError(f"Expected 64 bytes, got {len(key_bytes)}")
 
-    # Pad to 517 bits (47 words * 11 bits)
-    target_bits = 47 * 11  # 517 bits
-    bits = bits.ljust(target_bits, '0')
+    # Split key into two 32-byte (256-bit) chunks
+    first_half = key_bytes[:32]
+    second_half = key_bytes[32:]
 
-    # Split into 11-bit chunks (each word represents 11 bits)
-    words = []
-    for i in range(0, len(bits), 11):
-        chunk = bits[i:i+11]
-        if len(chunk) == 11:
-            word_index = int(chunk, 2)
-            words.append(BIP39_WORDLIST[word_index])
+    # Convert each half to BIP39 mnemonic (24 words each with checksum)
+    mnemonic_first = mnemo.to_mnemonic(first_half)
+    mnemonic_second = mnemo.to_mnemonic(second_half)
 
-    return ' '.join(words)
+    # Combine with separator
+    return f"{mnemonic_first} | {mnemonic_second}"
 
 def mnemonic_to_bytes(mnemonic):
     """
-    Convert BIP39 mnemonic words back to bytes
+    Convert BIP39 mnemonic words back to 64-byte Ed25519 key
+    Validates checksums before returning
     Returns exactly 64 bytes
     """
-    words = mnemonic.strip().split()
+    # Split the two 24-word mnemonics
+    if '|' not in mnemonic:
+        raise ValueError("Invalid mnemonic format. Expected two 24-word mnemonics separated by '|'")
 
-    # Convert words to bits
-    bits = ''
-    for word in words:
-        word = word.lower().strip()
-        if word not in BIP39_WORDLIST:
-            raise ValueError(f"Invalid word: {word}")
+    parts = mnemonic.split('|')
+    if len(parts) != 2:
+        raise ValueError("Invalid mnemonic format. Expected exactly two mnemonics separated by '|'")
 
-        word_index = BIP39_WORDLIST.index(word)
-        bits += format(word_index, '011b')
+    mnemonic_first = parts[0].strip()
+    mnemonic_second = parts[1].strip()
 
-    # Take only the first 512 bits (64 bytes)
-    bits = bits[:512]
+    # Validate both mnemonics (includes checksum validation)
+    if not mnemo.check(mnemonic_first):
+        raise ValueError("Invalid mnemonic (first half): checksum validation failed")
+    if not mnemo.check(mnemonic_second):
+        raise ValueError("Invalid mnemonic (second half): checksum validation failed")
 
-    # Convert bits back to bytes
-    key_bytes = bytearray()
-    for i in range(0, 512, 8):
-        byte = bits[i:i+8]
-        if len(byte) == 8:
-            key_bytes.append(int(byte, 2))
+    # Convert back to bytes
+    first_half = mnemo.to_entropy(mnemonic_first)
+    second_half = mnemo.to_entropy(mnemonic_second)
 
-    return bytes(key_bytes)
+    # Combine to get 64-byte key
+    key_bytes = first_half + second_half
+
+    if len(key_bytes) != 64:
+        raise ValueError(f"Invalid key size after decoding: {len(key_bytes)} bytes (expected 64)")
+
+    return key_bytes
 
 def extract_private_key():
     """
@@ -99,6 +114,7 @@ def extract_private_key():
 def export_key_as_mnemonic():
     """
     Export the current Tor private key as BIP39 mnemonic words
+    Returns 48 words (two 24-word mnemonics) with proper checksums
     """
     key_bytes = extract_private_key()
     return bytes_to_mnemonic(key_bytes)
@@ -106,21 +122,38 @@ def export_key_as_mnemonic():
 def import_key_from_mnemonic(mnemonic):
     """
     Import a Tor private key from BIP39 mnemonic words
+    Validates checksums and key format
     Returns the key bytes ready to be written to the container
     """
+    # mnemonic_to_bytes already validates:
+    # - Checksum for both halves
+    # - 64-byte total length
+    # - BIP39 word validity
     key_bytes = mnemonic_to_bytes(mnemonic)
 
-    # Validate size
+    # Additional Ed25519 validation
+    # The key should be 64 bytes (512 bits) for Ed25519 private key
     if len(key_bytes) != 64:
-        raise ValueError(f"Invalid key size: {len(key_bytes)} bytes (expected 64)")
+        raise ValueError(f"Invalid Ed25519 key size: {len(key_bytes)} bytes (expected 64)")
+
+    # Basic sanity check - key shouldn't be all zeros
+    if key_bytes == b'\x00' * 64:
+        raise ValueError("Invalid key: all zeros")
+
+    # Basic sanity check - key shouldn't be all 0xFF
+    if key_bytes == b'\xFF' * 64:
+        raise ValueError("Invalid key: all ones")
 
     return key_bytes
 
 def write_private_key(key_bytes):
     """
-    Write a new private key to the Tor container
+    Write a new private key to the Tor container using secure Python file I/O
     This will change your onion address!
     """
+    import tempfile
+    import os
+
     try:
         # The Tor key file format includes a 32-byte header
         # Header: "== ed25519v1-secret: type0 =="
@@ -132,23 +165,49 @@ def write_private_key(key_bytes):
         # Combine header + key
         full_key = header + key_bytes
 
-        # Write to container
-        result = subprocess.run(
-            ['docker', 'exec', '-i', 'onionpress-tor', 'sh', '-c',
-             'cat > /var/lib/tor/hidden_service/wordpress/hs_ed25519_secret_key && chmod 600 /var/lib/tor/hidden_service/wordpress/hs_ed25519_secret_key'],
-            input=full_key,
-            capture_output=True,
-            timeout=10
-        )
+        # Write to a temporary file with restricted permissions
+        with tempfile.NamedTemporaryFile(mode='wb', delete=False) as temp_file:
+            temp_path = temp_file.name
+            # Set restrictive permissions immediately
+            os.chmod(temp_path, 0o600)
+            temp_file.write(full_key)
 
-        if result.returncode != 0:
-            raise Exception(f"Failed to write key: {result.stderr.decode()}")
+        try:
+            # Copy file to container using docker cp (safer than shell pipeline)
+            result = subprocess.run(
+                ['docker', 'cp', temp_path,
+                 'onionpress-tor:/var/lib/tor/hidden_service/wordpress/hs_ed25519_secret_key'],
+                capture_output=True,
+                timeout=10
+            )
 
-        # Also need to regenerate the public key
-        # We'll just restart the Tor container to regenerate it
-        subprocess.run(['docker', 'restart', 'onionpress-tor'], capture_output=True, timeout=30)
+            if result.returncode != 0:
+                raise Exception(f"Failed to copy key to container: {result.stderr.decode()}")
 
-        return True
+            # Set proper permissions inside container
+            result = subprocess.run(
+                ['docker', 'exec', 'onionpress-tor', 'chmod', '600',
+                 '/var/lib/tor/hidden_service/wordpress/hs_ed25519_secret_key'],
+                capture_output=True,
+                timeout=10
+            )
+
+            if result.returncode != 0:
+                raise Exception(f"Failed to set key permissions: {result.stderr.decode()}")
+
+            # Restart Tor container to regenerate public key and hostname
+            subprocess.run(['docker', 'restart', 'onionpress-tor'],
+                         capture_output=True, timeout=30)
+
+            return True
+
+        finally:
+            # Securely delete temporary file
+            if os.path.exists(temp_path):
+                # Overwrite with zeros before deleting
+                with open(temp_path, 'wb') as f:
+                    f.write(b'\x00' * len(full_key))
+                os.unlink(temp_path)
 
     except Exception as e:
         raise Exception(f"Failed to write private key: {e}")

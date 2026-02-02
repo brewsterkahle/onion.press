@@ -814,7 +814,7 @@ end tell
 
     @rumps.clicked("Export Private Key...")
     def export_key(self, _):
-        """Export Tor private key as BIP39 mnemonic words"""
+        """Export Tor private key as BIP39 mnemonic words with authentication"""
         if not self.is_running:
             rumps.alert(
                 title="Service Not Running",
@@ -822,10 +822,60 @@ end tell
             )
             return
 
+        # Show security warning dialog first
+        icon_path = os.path.join(self.resources_dir, "app-icon.png")
+        try:
+            result = subprocess.run(["osascript", "-e", f'''
+tell application "System Events"
+    activate
+    set userChoice to button returned of (display dialog "⚠️ SECURITY WARNING ⚠️
+
+You are about to export your private key. This key controls your onion address and website identity.
+
+ANYONE with these backup words can:
+• Impersonate your onion address
+• Take over your site identity
+• Restore your address on another computer
+
+Only export if you understand the security implications.
+
+Continue with export?" buttons {{"Cancel", "I Understand - Continue"}} default button "Cancel" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Export Private Key")
+    return userChoice
+end tell
+'''], capture_output=True, text=True, timeout=60)
+
+            if result.returncode != 0 or "Continue" not in result.stdout:
+                return  # User cancelled
+        except Exception as e:
+            self.log(f"Warning dialog failed: {e}")
+            return
+
+        # Require macOS password authentication
+        try:
+            auth_result = subprocess.run(["osascript", "-e", f'''
+do shell script "echo 'Authentication successful'" with administrator privileges
+'''], capture_output=True, text=True, timeout=60)
+
+            if auth_result.returncode != 0:
+                rumps.alert(
+                    title="Authentication Failed",
+                    message="macOS password authentication is required to export private keys."
+                )
+                return
+        except Exception as e:
+            self.log(f"Authentication failed: {e}")
+            rumps.alert(
+                title="Authentication Failed",
+                message="Could not authenticate. Private key export cancelled."
+            )
+            return
+
         try:
             # Get the mnemonic
             mnemonic = key_manager.export_key_as_mnemonic()
-            word_count = len(mnemonic.split())
+
+            # Count actual words (excluding separator)
+            word_count = len([w for w in mnemonic.split() if w != '|'])
 
             # Format for display with line breaks every 6 words
             words = mnemonic.split()
@@ -837,13 +887,15 @@ end tell
             # Show the mnemonic with warning
             message = f"""⚠️ IMPORTANT: Keep these words safe and private!
 
-These {word_count} words represent your private key and onion address. Anyone with these words can restore your exact onion address.
+These {word_count} words represent your private key and onion address. Anyone with these words can restore your exact onion address and impersonate your site.
 
 {formatted_mnemonic}
 
 The words have been copied to your clipboard.
 
-Store them in a safe place - you can use them to restore your onion address on a new installation."""
+Store them in a safe place - you can use them to restore your onion address on a new installation.
+
+DO NOT share these words with anyone."""
 
             subprocess.run(["pbcopy"], input=mnemonic.encode(), check=True)
 
@@ -875,7 +927,7 @@ Store them in a safe place - you can use them to restore your onion address on a
         # Get mnemonic from user
         window = rumps.Window(
             title="Import Private Key",
-            message="Paste your BIP39 mnemonic words below (47 words):",
+            message="Paste your BIP39 mnemonic words below (48 words, two 24-word mnemonics separated by |):",
             default_text="",
             ok="Import",
             cancel="Cancel",
@@ -1224,38 +1276,107 @@ end tell
 
     @rumps.clicked("Uninstall...")
     def uninstall(self, _):
-        """Uninstall Onion.Press automatically"""
-        # Use osascript for confirmation dialog with proper icon
-        # Use direct path to icon instead of 'path to application' for better reliability
+        """Uninstall Onion.Press with mandatory key backup prompt"""
         icon_path = os.path.join(self.resources_dir, "app-icon.png")
+
+        # Step 1: Show critical warning about key loss
         try:
             result = subprocess.run(["osascript", "-e", f'''
 tell application "System Events"
     activate
-    set userChoice to button returned of (display dialog "This will remove Onion.Press from your system.
+    set userChoice to button returned of (display dialog "⚠️ CRITICAL WARNING ⚠️
 
-Your WordPress data and onion address will be permanently deleted.
+Uninstalling will PERMANENTLY DELETE:
+• Your onion address and private key
+• All WordPress content and data
+• Database and configuration
 
-Continue?" buttons {{"Cancel", "Uninstall"}} default button "Cancel" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Uninstall Onion.Press")
+YOUR ONION ADDRESS CANNOT BE RECOVERED unless you have a backup of your private key.
+
+Do you want to backup your private key before uninstalling?" buttons {{"Cancel", "No, Delete Everything", "Yes, Backup First"}} default button "Yes, Backup First" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Uninstall Warning")
     return userChoice
 end tell
 '''], capture_output=True, text=True, timeout=60)
 
-            self.log(f"Uninstall dialog osascript result: returncode={result.returncode}, stdout={result.stdout}, stderr={result.stderr}")
+            self.log(f"Key backup prompt result: {result.stdout}")
 
-            # Check if user clicked Uninstall
-            if result.returncode != 0 or "Uninstall" not in result.stdout:
+            if result.returncode != 0 or "Cancel" in result.stdout:
                 return  # User cancelled
+
+            if "Yes, Backup First" in result.stdout:
+                # User wants to backup key first - call export function
+                self.log("User chose to backup key before uninstall")
+                if self.is_running:
+                    self.export_key(None)
+                else:
+                    rumps.alert(
+                        title="Service Not Running",
+                        message="Cannot export key while service is stopped.\n\nPlease start the service first, then try uninstall again to backup your key."
+                    )
+                    return
+
+                # After export, ask again if they want to continue with uninstall
+                result2 = subprocess.run(["osascript", "-e", f'''
+tell application "System Events"
+    activate
+    set userChoice to button returned of (display dialog "Key backup complete.
+
+Proceed with uninstall?
+
+This will permanently delete all data." buttons {{"Cancel", "Proceed with Uninstall"}} default button "Cancel" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Confirm Uninstall")
+    return userChoice
+end tell
+'''], capture_output=True, text=True, timeout=60)
+
+                if result2.returncode != 0 or "Proceed" not in result2.stdout:
+                    return  # User cancelled after backup
+
         except Exception as e:
             # Fallback to rumps if osascript fails
-            self.log(f"Uninstall dialog osascript failed: {e}")
+            self.log(f"Warning dialog osascript failed: {e}")
             response = rumps.alert(
-                title="Uninstall Onion.Press",
-                message="This will remove Onion.Press from your system.\n\nYour WordPress data and onion address will be permanently deleted.\n\nContinue?",
-                ok="Uninstall",
+                title="Uninstall Warning",
+                message="⚠️ WARNING: Uninstalling will permanently delete your onion address and all data.\n\nBackup your private key first?\n\nClick 'Backup' to export your key, or 'Continue' to proceed without backup.",
+                ok="Continue Without Backup",
                 cancel="Cancel"
             )
-            if response != 1:  # Cancel clicked
+            if response != 1:
+                return
+
+        # Step 2: Final confirmation with explicit acknowledgment
+        try:
+            result = subprocess.run(["osascript", "-e", f'''
+tell application "System Events"
+    activate
+    set userChoice to button returned of (display dialog "FINAL CONFIRMATION
+
+Type 'DELETE' below to confirm permanent deletion of all data:
+" default answer "" buttons {{"Cancel", "Confirm Deletion"}} default button "Cancel" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Confirm Uninstall")
+    set userText to text returned of result
+    return userText
+end tell
+'''], capture_output=True, text=True, timeout=60)
+
+            self.log(f"Final confirmation result: {result.stdout}")
+
+            # Check if user typed "DELETE" (case insensitive)
+            if result.returncode != 0 or "DELETE" not in result.stdout.upper():
+                rumps.alert(
+                    title="Uninstall Cancelled",
+                    message="Uninstall cancelled. Type 'DELETE' to confirm."
+                )
+                return
+
+        except Exception as e:
+            self.log(f"Final confirmation failed: {e}")
+            # Fallback: just require one more click
+            response = rumps.alert(
+                title="Final Confirmation",
+                message="Are you absolutely sure you want to delete everything?",
+                ok="Yes, Delete Everything",
+                cancel="Cancel"
+            )
+            if response != 1:
                 return
 
         # User confirmed uninstall - run in background thread to avoid beach ball

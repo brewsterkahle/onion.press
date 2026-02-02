@@ -20,7 +20,7 @@ services:
     environment:
       - WORDPRESS_DB_HOST=db:3306
       - WORDPRESS_DB_USER=wordpress
-      - WORDPRESS_DB_PASSWORD=wordpress_password_change_me
+      - WORDPRESS_DB_PASSWORD=${WORDPRESS_DB_PASSWORD}
       - WORDPRESS_DB_NAME=wordpress
       - WORDPRESS_CONFIG_EXTRA=
           define('WP_HOME', 'http://' . $$_SERVER['HTTP_HOST']);
@@ -40,10 +40,10 @@ services:
     image: mariadb:latest
     container_name: onionpress-db
     environment:
-      - MYSQL_ROOT_PASSWORD=root_password_change_me
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=wordpress
       - MYSQL_USER=wordpress
-      - MYSQL_PASSWORD=wordpress_password_change_me
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - db-data:/var/lib/mysql
     restart: unless-stopped
