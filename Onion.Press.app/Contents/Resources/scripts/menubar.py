@@ -1498,8 +1498,11 @@ end tell
         self.dismiss_setup_dialog()
         # Stop web log capture
         self.stop_web_log_capture()
-        # Stop services before quitting
-        subprocess.run([self.launcher_script, "stop"])
+        # Stop services before quitting (with timeout to prevent hanging)
+        try:
+            subprocess.run([self.launcher_script, "stop"], capture_output=True, timeout=30)
+        except subprocess.TimeoutExpired:
+            self.log("Warning: Stop command timed out, forcing quit anyway")
         # Quit Console.app if it's running (so it releases the log file)
         subprocess.run(["osascript", "-e", 'quit app "Console"'], capture_output=True)
         rumps.quit_application()
