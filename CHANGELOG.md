@@ -134,7 +134,7 @@ All notable changes to onion.press will be documented in this file.
 ## [1.0.0] - 2026-01-31
 
 ### Initial Release
-- WordPress + Tor Hidden Service bundle for macOS
+- WordPress + Tor Onion Service bundle for macOS
 - Menu bar app for easy control
 - One-click start/stop/restart
 - Automatic onion address generation

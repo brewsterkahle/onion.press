@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 onion.press Menu Bar Application
-Provides a simple menu bar interface to control the WordPress + Tor service
+Provides a simple menu bar interface to control the WordPress + Tor onion service
 """
 
 # Set activation policy BEFORE importing rumps to prevent dock icon
@@ -272,7 +272,7 @@ class OnionPressApp(rumps.App):
 
         try:
             if log_result:
-                self.log(f"Checking Tor hidden service status for: {self.onion_address}")
+                self.log(f"Checking Tor onion service status for: {self.onion_address}")
 
             docker_bin = os.path.join(self.bin_dir, "docker")
 
@@ -322,7 +322,7 @@ class OnionPressApp(rumps.App):
                     self.log(f"✗ Tor errors detected in logs")
                 return False
 
-            # All checks passed - hidden service should be reachable
+            # All checks passed - onion service should be reachable
             if log_result:
                 self.log(f"✓ Onion service published and ready: {self.onion_address}")
             return True
@@ -376,7 +376,7 @@ class OnionPressApp(rumps.App):
                 ready_now = wordpress_ready and tor_reachable
 
                 # If just became ready, wait 10 seconds before showing as ready
-                # This gives the Tor network time to fully propagate the hidden service
+                # This gives the Tor network time to fully propagate the onion service
                 if ready_now and not previous_ready:
                     self.log("✓ System checks passed - waiting 10 seconds for Tor network propagation...")
                     self.last_status_logged = current_status
@@ -961,10 +961,10 @@ end tell
         """Show about dialog"""
         about_text = f"""Onion.Press v{self.version}
 
-Easy-to-install WordPress with Tor Hidden Service for macOS
+Easy-to-install WordPress with Tor Onion Service for macOS
 
 Features:
-• Tor Hidden Service with vanity addresses (op2*)
+• Tor Onion Service with vanity addresses (op2*)
 • Internet Archive Wayback Machine integration
 • Bundled container runtime (no Docker needed)
 • Privacy-first design

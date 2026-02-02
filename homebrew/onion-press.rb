@@ -4,7 +4,7 @@ cask "onion-press" do
 
   url "https://github.com/brewsterkahle/onion.press/releases/download/v#{version}/onion.press.dmg"
   name "Onion.Press"
-  desc "Easy-to-install WordPress with Tor Hidden Service"
+  desc "Easy-to-install WordPress with Tor Onion Service"
   homepage "https://github.com/brewsterkahle/onion.press"
 
   livecheck do

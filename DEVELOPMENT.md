@@ -295,7 +295,7 @@ Before releasing a new version:
 
 ### Why mkp224o for vanity addresses?
 - **Fast generation**: Can generate 3-character prefixes in < 1 second
-- **v3 onion support**: Works with modern Tor hidden services
+- **v3 onion support**: Works with modern Tor onion services
 - **Customizable**: Users can configure their own prefix
 - **Branding**: "op2" prefix makes onion.press services easily identifiable
 
