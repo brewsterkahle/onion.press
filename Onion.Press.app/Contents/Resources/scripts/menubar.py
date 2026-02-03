@@ -123,6 +123,9 @@ class OnionPressApp(rumps.App):
             rumps.MenuItem("Quit", callback=self.quit_app),
         ]
 
+        # Request AppleScript permissions on first launch
+        self.request_applescript_permission()
+
         # Ensure Docker is available
         threading.Thread(target=self.ensure_docker_available, daemon=True).start()
 
@@ -144,6 +147,36 @@ class OnionPressApp(rumps.App):
                 f.write(log_message)
         except Exception as e:
             print(f"Error writing to log: {e}")
+
+    def request_applescript_permission(self):
+        """Request AppleScript automation permission on first launch"""
+        try:
+            # Check if we've already requested permission (avoid showing alert every launch)
+            permission_flag = os.path.join(self.app_support, ".permission_requested")
+
+            if not os.path.exists(permission_flag):
+                # Show friendly explanation before the system prompt appears
+                rumps.alert(
+                    title="Permission Required",
+                    message="Onion.Press needs permission to display native confirmation dialogs.\n\nYou'll see a system permission request next - please click 'OK' to allow Onion.Press to control System Events.\n\nThis is used for features like the uninstall confirmation dialog.",
+                    ok="Continue"
+                )
+
+                # Create the flag file so we don't show this every time
+                os.makedirs(self.app_support, exist_ok=True)
+                with open(permission_flag, 'w') as f:
+                    f.write("1")
+
+            # Make a simple AppleScript call to trigger the permission request
+            # This will show the system dialog if permission hasn't been granted yet
+            subprocess.run(
+                ["osascript", "-e", 'tell application "System Events" to return name'],
+                capture_output=True,
+                timeout=10
+            )
+
+        except Exception as e:
+            self.log(f"AppleScript permission request failed: {e}")
 
     def start_web_log_capture(self):
         """Start capturing WordPress logs to a file"""
