@@ -1390,7 +1390,7 @@ DO NOT share these words with anyone."""
                 )
 
             docker_bin = os.path.join(self.bin_dir, "docker")
-            docker_compose_file = os.path.join(self.resources_dir, "docker", "docker-compose.yml")
+            docker_compose_file = os.path.join(self.parent_resources_dir, "docker", "docker-compose.yml")
 
             # Set up environment
             env = os.environ.copy()
