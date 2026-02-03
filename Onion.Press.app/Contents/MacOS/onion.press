@@ -29,9 +29,11 @@ if [ ! -f "$DATA_DIR/docker-config/config.json" ]; then
 EOFCONFIG
 fi
 
-# Create symlink to docker-compose plugin if it exists in default location
+# Install docker-compose plugin: prefer bundled, fall back to system
 mkdir -p "$DATA_DIR/docker-config/cli-plugins"
-if [ -L "$HOME/.docker/cli-plugins/docker-compose" ] && [ ! -e "$DATA_DIR/docker-config/cli-plugins/docker-compose" ]; then
+if [ -f "$BIN_DIR/docker-compose" ] && [ ! -e "$DATA_DIR/docker-config/cli-plugins/docker-compose" ]; then
+    ln -sf "$BIN_DIR/docker-compose" "$DATA_DIR/docker-config/cli-plugins/docker-compose"
+elif [ -L "$HOME/.docker/cli-plugins/docker-compose" ] && [ ! -e "$DATA_DIR/docker-config/cli-plugins/docker-compose" ]; then
     ln -sf "$HOME/.docker/cli-plugins/docker-compose" "$DATA_DIR/docker-config/cli-plugins/docker-compose"
 fi
 

@@ -31,6 +31,7 @@ TEMP_BIN_DIR=$(mktemp -d)
 COLIMA_VERSION="v0.8.1"
 LIMA_VERSION="2.0.3"
 DOCKER_VERSION="27.5.1"
+DOCKER_COMPOSE_VERSION="v2.32.4"
 MKP224O_VERSION="master"  # Using master for latest version
 
 # Download Colima for both architectures
@@ -94,6 +95,22 @@ lipo -create \
   "$TEMP_BIN_DIR/docker-arm64/docker/docker" \
   -output "$TEMP_BIN_DIR/docker"
 
+# Download Docker Compose plugin for both architectures
+echo "  Downloading Docker Compose plugin..."
+curl -L -o "$TEMP_BIN_DIR/docker-compose-amd64" \
+  "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-darwin-x86_64"
+curl -L -o "$TEMP_BIN_DIR/docker-compose-arm64" \
+  "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-darwin-aarch64"
+
+chmod +x "$TEMP_BIN_DIR"/docker-compose-*
+
+# Create universal binary for Docker Compose
+echo "  Creating universal Docker Compose binary..."
+lipo -create \
+  "$TEMP_BIN_DIR/docker-compose-amd64" \
+  "$TEMP_BIN_DIR/docker-compose-arm64" \
+  -output "$TEMP_BIN_DIR/docker-compose"
+
 # Build mkp224o for vanity onion addresses
 echo "  Building mkp224o for vanity onion addresses..."
 if command -v git >/dev/null 2>&1; then
@@ -129,6 +146,7 @@ echo "Installing binaries to app bundle..."
 cp "$TEMP_BIN_DIR/colima" "$BIN_DIR/colima"
 cp "$TEMP_BIN_DIR/limactl" "$BIN_DIR/limactl"
 cp "$TEMP_BIN_DIR/docker" "$BIN_DIR/docker"
+cp "$TEMP_BIN_DIR/docker-compose" "$BIN_DIR/docker-compose"
 
 # Copy mkp224o if it was built
 if [ -f "$TEMP_BIN_DIR/mkp224o" ]; then
@@ -143,7 +161,7 @@ chmod +x "$BIN_DIR"/*
 # Extract ARM64-only slices to prevent Rosetta emulation issues
 echo "Extracting ARM64 slices from universal binaries..."
 cd "$BIN_DIR"
-for binary in colima docker limactl; do
+for binary in colima docker docker-compose limactl; do
     if file "$binary" | grep -q "universal"; then
         echo "  Extracting ARM64 slice for $binary"
         lipo "$binary" -thin arm64 -output "${binary}.arm64"

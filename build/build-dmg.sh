@@ -33,7 +33,7 @@ if [ -d "$BIN_DIR" ]; then
     # Extract ARM64-only slices to prevent Rosetta emulation issues
     echo "  Extracting ARM64 slices from universal binaries..."
     cd "$BIN_DIR"
-    for binary in colima docker limactl; do
+    for binary in colima docker docker-compose limactl; do
         if [ -f "$binary" ] && file "$binary" | grep -q "universal"; then
             echo "    Extracting ARM64 slice for $binary"
             lipo "$binary" -thin arm64 -output "${binary}.arm64"
