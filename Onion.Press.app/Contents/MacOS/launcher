@@ -35,15 +35,18 @@ log() {
 
 log "Starting onion.press launcher..."
 
-# Detect architecture
-HOST_ARCH=$(uname -m)
-if [ "$HOST_ARCH" = "arm64" ]; then
+# Detect architecture (use sysctl to get actual hardware, not process architecture)
+# This is important because shell scripts may run under Rosetta on Apple Silicon
+if sysctl hw.optional.arm64 2>/dev/null | grep -q ": 1"; then
+    HOST_ARCH="arm64"
     VM_ARCH="aarch64"
     log "Detected Apple Silicon (ARM64)"
-elif [ "$HOST_ARCH" = "x86_64" ]; then
+elif [ "$(uname -m)" = "x86_64" ]; then
+    HOST_ARCH="x86_64"
     VM_ARCH="x86_64"
     log "Detected Intel (x86_64)"
 else
+    HOST_ARCH=$(uname -m)
     log "ERROR: Unsupported architecture: $HOST_ARCH"
     echo "ERROR: Unsupported architecture: $HOST_ARCH" >&2
     exit 1
@@ -114,7 +117,7 @@ initialize_colima() {
 # The menubar app will show gray icon and wait for services to be ready
 if [ "$FIRST_RUN" = true ]; then
     log "Launching menu bar application in background during setup..."
-    "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
+    arch -"$HOST_ARCH" "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
     MENUBAR_PID=$!
     log "Menu bar app launched (PID: $MENUBAR_PID)"
 fi
@@ -147,6 +150,6 @@ fi
 
 # For subsequent launches, start menu bar app in background
 log "Launching menu bar application..."
-"$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
+arch -"$HOST_ARCH" "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
 MENUBAR_PID=$!
 log "Menu bar app launched (PID: $MENUBAR_PID)"
