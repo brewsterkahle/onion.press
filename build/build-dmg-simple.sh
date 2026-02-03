@@ -127,8 +127,10 @@ if command -v git >/dev/null 2>&1; then
     fi
 
     # Build mkp224o (use ref10 for ARM64 compatibility)
+    # Statically link libsodium so the binary works without Homebrew installed
+    SODIUM_LIB=$(brew --prefix libsodium 2>/dev/null)/lib/libsodium.a
     if ./autogen.sh && \
-       CFLAGS="-I/opt/homebrew/include" LDFLAGS="-L/opt/homebrew/lib" ./configure --enable-ref10 && \
+       CFLAGS="-I/opt/homebrew/include" LDFLAGS="$SODIUM_LIB" ./configure --enable-ref10 && \
        make; then
         # Copy binary
         cp mkp224o "$TEMP_BIN_DIR/mkp224o"
