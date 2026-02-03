@@ -1459,6 +1459,7 @@ DO NOT share these words with anyone."""
                 ["curl", "-s", "-H", "User-Agent: onion.press", "--max-time", "10", url],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 timeout=15
             )
 
