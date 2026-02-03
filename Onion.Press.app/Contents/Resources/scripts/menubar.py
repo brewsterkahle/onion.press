@@ -104,6 +104,7 @@ class OnionPressApp(rumps.App):
         self.last_status_logged = None  # Track last logged status to avoid spam
         self.auto_opened_browser = False  # Track if we've auto-opened browser this session
         self.setup_dialog_process = None  # Track setup dialog process to dismiss it later
+        self.monitoring_tor_install = False  # Track if we're monitoring for Tor Browser installation
 
         # Menu items
         self.menu = [
@@ -670,38 +671,176 @@ end tell
         else:
             rumps.alert("Onion address not available yet. Please wait for the service to start.")
 
+    def monitor_tor_browser_install(self):
+        """Monitor for Tor Browser installation and offer to open site when detected"""
+        if self.monitoring_tor_install:
+            return  # Already monitoring
+
+        self.monitoring_tor_install = True
+        self.log("Starting Tor Browser installation monitor")
+
+        def check_for_tor():
+            tor_browser_path = "/Applications/Tor Browser.app"
+            timeout = 600  # 10 minutes
+            check_interval = 3  # Check every 3 seconds
+            elapsed = 0
+
+            while elapsed < timeout and self.monitoring_tor_install:
+                time.sleep(check_interval)
+                elapsed += check_interval
+
+                if os.path.exists(tor_browser_path):
+                    self.log("Tor Browser detected!")
+                    self.monitoring_tor_install = False
+
+                    # Show dialog asking if they want to open the site
+                    icon_path = os.path.join(self.resources_dir, "app-icon.png")
+                    address = self.onion_address
+                    try:
+                        result = subprocess.run(["osascript", "-e", f'''
+tell current application
+    activate
+    set userChoice to button returned of (display dialog "Tor Browser is now installed!
+
+Would you like to open your site?
+
+{address}" buttons {{"Later", "Open Site"}} default button "Open Site" with icon POSIX file "{icon_path}" with title "Onion.Press")
+    return userChoice
+end tell
+'''], capture_output=True, text=True)  # No timeout - user can take their time
+
+                        if "Open" in (result.stdout or ""):
+                            url = f"http://{address}"
+                            subprocess.run(["open", "-a", "Tor Browser", url])
+                            self.log(f"Opened site in Tor Browser: {url}")
+                    except Exception as e:
+                        self.log(f"Error showing Tor Browser ready dialog: {e}")
+                    return
+
+            # Timeout reached
+            self.monitoring_tor_install = False
+            self.log("Tor Browser installation monitor timed out")
+
+        threading.Thread(target=check_for_tor, daemon=True).start()
+
+    def monitor_brave_install(self):
+        """Monitor for Brave Browser installation and offer to open site when detected"""
+        if self.monitoring_tor_install:  # Reuse the same flag since we only monitor one at a time
+            return  # Already monitoring
+
+        self.monitoring_tor_install = True
+        self.log("Starting Brave Browser installation monitor")
+
+        def check_for_brave():
+            brave_browser_path = "/Applications/Brave Browser.app"
+            timeout = 600  # 10 minutes
+            check_interval = 3  # Check every 3 seconds
+            elapsed = 0
+
+            while elapsed < timeout and self.monitoring_tor_install:
+                time.sleep(check_interval)
+                elapsed += check_interval
+
+                if os.path.exists(brave_browser_path):
+                    self.log("Brave Browser detected!")
+                    self.monitoring_tor_install = False
+
+                    # Show dialog asking if they want to open the site
+                    icon_path = os.path.join(self.resources_dir, "app-icon.png")
+                    address = self.onion_address
+                    try:
+                        result = subprocess.run(["osascript", "-e", f'''
+tell current application
+    activate
+    set userChoice to button returned of (display dialog "Brave Browser is now installed!
+
+Would you like to open your site?
+
+{address}" buttons {{"Later", "Open Site"}} default button "Open Site" with icon POSIX file "{icon_path}" with title "Onion.Press")
+    return userChoice
+end tell
+'''], capture_output=True, text=True)  # No timeout - user can take their time
+
+                        if "Open" in (result.stdout or ""):
+                            url = f"http://{address}"
+                            subprocess.run(["open", "-a", "Brave Browser", url])
+                            self.log(f"Opened site in Brave Browser: {url}")
+                    except Exception as e:
+                        self.log(f"Error showing Brave Browser ready dialog: {e}")
+                    return
+
+            # Timeout reached
+            self.monitoring_tor_install = False
+            self.log("Brave Browser installation monitor timed out")
+
+        threading.Thread(target=check_for_brave, daemon=True).start()
+
     @rumps.clicked("Open in Tor Browser")
     def open_tor_browser(self, _):
-        """Open the onion address in Tor Browser"""
+        """Open the onion address in Tor Browser or Brave Browser"""
         if self.onion_address and self.onion_address not in ["Starting...", "Not running", "Generating address..."]:
             tor_browser_path = "/Applications/Tor Browser.app"
+            brave_browser_path = "/Applications/Brave Browser.app"
+            url = f"http://{self.onion_address}"
 
             if os.path.exists(tor_browser_path):
-                url = f"http://{self.onion_address}"
+                # Prefer Tor Browser if available
                 subprocess.run(["open", "-a", "Tor Browser", url])
-            else:
-                response = rumps.alert(
-                    title="Tor Browser Not Found",
-                    message="Tor Browser is not installed. Would you like to download it?",
-                    ok="Download Tor Browser",
-                    cancel="Cancel"
+                self.log(f"Opened {url} in Tor Browser")
+            elif os.path.exists(brave_browser_path):
+                # Fallback to Brave Browser with Tor support
+                # Brave automatically opens .onion URLs in a Private Window with Tor
+                subprocess.run(["open", "-a", "Brave Browser", url])
+                self.log(f"Opened {url} in Brave Browser")
+                # Show notification to let user know Brave is being used
+                rumps.notification(
+                    title="Onion.Press",
+                    subtitle="Opening in Brave Browser",
+                    message="Brave will open your site in a Private Window with Tor"
                 )
-                if response == 1:  # OK clicked
+            else:
+                # Neither browser is installed - offer download options
+                response = rumps.alert(
+                    title="Tor-Compatible Browser Not Found",
+                    message="Neither Tor Browser nor Brave Browser is installed.\n\nWould you like to download one?",
+                    ok="Download Tor Browser",
+                    cancel="Cancel",
+                    other="Download Brave Browser"
+                )
+                if response == 1:  # Tor Browser
                     subprocess.run(["open", "https://www.torproject.org/download/"])
+                    # Start monitoring for Tor Browser installation
+                    self.monitor_tor_browser_install()
+                elif response == 0:  # Brave Browser (other button)
+                    subprocess.run(["open", "https://brave.com/download/"])
+                    # Start monitoring for Brave Browser installation
+                    self.monitor_brave_install()
         else:
             rumps.alert("Onion address not available yet. Please wait for the service to start.")
 
     def auto_open_browser(self):
-        """Automatically open Tor Browser when service becomes ready"""
+        """Automatically open Tor Browser or Brave Browser when service becomes ready"""
         if self.onion_address and self.onion_address not in ["Starting...", "Not running", "Generating address..."]:
             tor_browser_path = "/Applications/Tor Browser.app"
+            brave_browser_path = "/Applications/Brave Browser.app"
+            url = f"http://{self.onion_address}"
 
             if os.path.exists(tor_browser_path):
-                url = f"http://{self.onion_address}"
+                # Prefer Tor Browser if available
                 self.log(f"Auto-opening Tor Browser: {url}")
                 subprocess.run(["open", "-a", "Tor Browser", url])
+            elif os.path.exists(brave_browser_path):
+                # Fallback to Brave Browser with Tor support
+                self.log(f"Auto-opening Brave Browser: {url}")
+                subprocess.run(["open", "-a", "Brave Browser", url])
+                # Show notification to let user know Brave is being used
+                rumps.notification(
+                    title="Onion.Press",
+                    subtitle="Opening in Brave Browser",
+                    message="Brave will open your site in a Private Window with Tor"
+                )
             else:
-                self.log("Tor Browser not installed - showing download dialog")
+                self.log("Neither Tor Browser nor Brave Browser installed - showing download dialog")
                 icon_path = os.path.join(self.resources_dir, "app-icon.png")
                 address = self.onion_address
                 try:
@@ -714,12 +853,19 @@ tell current application
 
 To visit your site, you need Tor Browser or Brave Browser.
 
-Would you like to download Tor Browser now?" buttons {{"Later", "Download Tor Browser"}} default button "Download Tor Browser" with icon POSIX file "{icon_path}" with title "Onion.Press")
+Would you like to download one now?" buttons {{"Later", "Download Tor Browser", "Download Brave Browser"}} default button "Download Tor Browser" with icon POSIX file "{icon_path}" with title "Onion.Press")
     return userChoice
 end tell
-'''], capture_output=True, text=True, timeout=60)
-                    if "Download" in (result.stdout or ""):
+'''], capture_output=True, text=True)  # No timeout - user can take their time
+                    button_clicked = result.stdout.strip() if result.stdout else ""
+                    if "Tor Browser" in button_clicked:
                         subprocess.run(["open", "https://www.torproject.org/download/"])
+                        # Start monitoring for Tor Browser installation
+                        self.monitor_tor_browser_install()
+                    elif "Brave Browser" in button_clicked:
+                        subprocess.run(["open", "https://brave.com/download/"])
+                        # Start monitoring for Brave Browser installation
+                        self.monitor_brave_install()
                 except Exception as e:
                     self.log(f"Download dialog failed: {e}")
 
@@ -742,7 +888,13 @@ end tell
                 # First run if we don't have wordpress/mysql/tor images
                 if not any('wordpress' in img for img in images):
                     first_run = True
-                    self.log("First run detected - will show setup dialog and monitor image downloads")
+                    self.log("First run detected - opening Console to show progress")
+                    # Open Console.app with the log file so user can see what's happening
+                    try:
+                        subprocess.run(["open", "-a", "Console", self.log_file], capture_output=True)
+                        self.log("Console.app opened to show setup progress")
+                    except Exception as e:
+                        self.log(f"Failed to open Console.app: {e}")
                     # Show persistent setup dialog
                     self.show_setup_dialog()
             except:
@@ -1202,6 +1354,8 @@ tell current application
 
 Downloading container images (2-5 minutes)
 
+Console.app has been opened so you can watch the progress.
+
 This window will close automatically when your site is ready." buttons {{"Cancel Setup", "Dismiss"}} default button "Dismiss" cancel button "Cancel Setup" with icon POSIX file "{icon_path}" with title "onion.press Setup" giving up after 1800
 end tell
 '''
@@ -1235,7 +1389,7 @@ end tell
             # Fallback to notification if osascript fails
             try:
                 self.show_notification("Setting up onion.press for first use...",
-                                     "Downloading container images (2-5 minutes)")
+                                     "Console.app opened to show progress. Downloading images (2-5 min)")
             except:
                 pass
 
@@ -1409,22 +1563,24 @@ end tell
             result = subprocess.run(["osascript", "-e", f'''
 tell current application
     activate
-    set userChoice to button returned of (display dialog "FINAL CONFIRMATION
+    set dialogResult to (display dialog "FINAL CONFIRMATION
 
 Type 'DELETE' below to confirm permanent deletion of all data:
 " default answer "" buttons {{"Cancel", "Confirm Deletion"}} default button "Cancel" cancel button "Cancel" with icon POSIX file "{icon_path}" with title "Confirm Uninstall")
-    set userText to text returned of result
+    set userText to text returned of dialogResult
     return userText
 end tell
 '''], capture_output=True, text=True, timeout=60)
 
-            self.log(f"Final confirmation result: {result.stdout}")
+            self.log(f"Final confirmation result: returncode={result.returncode}, stdout='{result.stdout}', stderr='{result.stderr}'")
 
             # Check if user typed "DELETE" (case insensitive)
-            if result.returncode != 0 or result.stdout.strip().upper() != "DELETE":
+            user_input = result.stdout.strip().upper() if result.stdout else ""
+            if result.returncode != 0 or user_input != "DELETE":
+                self.log(f"Uninstall cancelled - user input was: '{user_input}' (expected 'DELETE')")
                 rumps.alert(
                     title="Uninstall Cancelled",
-                    message="Uninstall cancelled. Type 'DELETE' to confirm."
+                    message=f"Uninstall cancelled. Type 'DELETE' to confirm.\n\n(You typed: '{result.stdout.strip() if result.stdout else ''}')"
                 )
                 return
 
@@ -1445,18 +1601,23 @@ end tell
             try:
                 # First, stop any ongoing setup processes
                 self.log("Uninstall: Stopping any ongoing processes...")
+                # Stop any ongoing browser monitoring
+                self.monitoring_tor_install = False
                 self.dismiss_setup_dialog()
 
                 # Stop the service (this will cancel any startup in progress)
                 self.log("Uninstall: Stopping services...")
                 subprocess.run([self.launcher_script, "stop"], capture_output=True, timeout=30)
 
-                # Kill all colima/lima processes (including orphaned ones)
-                self.log("Uninstall: Killing all colima/lima processes...")
-                subprocess.run(["pkill", "-f", "colima daemon"], capture_output=True, timeout=10)
-                subprocess.run(["pkill", "-f", "limactl hostagent"], capture_output=True, timeout=10)
-                subprocess.run(["pkill", "-f", "limactl usernet"], capture_output=True, timeout=10)
-                subprocess.run(["pkill", "-f", "ssh.*colima.*ssh.sock"], capture_output=True, timeout=10)
+                # Delete Colima VM (cleaner than pkill, properly removes VM)
+                # Only affects Onion.Press instance, not system Colima
+                self.log("Uninstall: Deleting Colima VM...")
+                colima_bin = os.path.join(self.bin_dir, "colima")
+                env = os.environ.copy()
+                env["COLIMA_HOME"] = self.colima_home
+                env["LIMA_HOME"] = os.path.join(self.colima_home, "_lima")
+                env["LIMA_INSTANCE"] = "onionpress"
+                subprocess.run([colima_bin, "delete", "-f"], capture_output=True, timeout=60, env=env)
 
                 # Remove Docker volumes
                 self.log("Uninstall: Removing Docker volumes...")
@@ -1555,6 +1716,8 @@ end tell
                 return
 
         # User confirmed quit
+        # Stop any ongoing browser monitoring
+        self.monitoring_tor_install = False
         # Dismiss setup dialog if showing
         self.dismiss_setup_dialog()
         # Stop web log capture
@@ -1564,6 +1727,19 @@ end tell
             subprocess.run([self.launcher_script, "stop"], capture_output=True, timeout=30)
         except subprocess.TimeoutExpired:
             self.log("Warning: Stop command timed out, forcing quit anyway")
+        # Stop Colima VM to free resources (only affects Onion.Press instance)
+        try:
+            colima_bin = os.path.join(self.bin_dir, "colima")
+            self.log("Stopping Colima VM...")
+            env = os.environ.copy()
+            env["COLIMA_HOME"] = self.colima_home
+            env["LIMA_HOME"] = os.path.join(self.colima_home, "_lima")
+            env["LIMA_INSTANCE"] = "onionpress"
+            subprocess.run([colima_bin, "stop"], capture_output=True, timeout=60, env=env)
+        except subprocess.TimeoutExpired:
+            self.log("Warning: Colima stop timed out, forcing quit anyway")
+        except Exception as e:
+            self.log(f"Warning: Failed to stop Colima: {e}")
         # Quit Console.app if it's running (so it releases the log file)
         subprocess.run(["osascript", "-e", 'quit app "Console"'], capture_output=True)
         rumps.quit_application()
