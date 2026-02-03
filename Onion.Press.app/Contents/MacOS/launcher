@@ -35,6 +35,20 @@ log() {
 
 log "Starting onion.press launcher..."
 
+# Detect architecture
+HOST_ARCH=$(uname -m)
+if [ "$HOST_ARCH" = "arm64" ]; then
+    VM_ARCH="aarch64"
+    log "Detected Apple Silicon (ARM64)"
+elif [ "$HOST_ARCH" = "x86_64" ]; then
+    VM_ARCH="x86_64"
+    log "Detected Intel (x86_64)"
+else
+    log "ERROR: Unsupported architecture: $HOST_ARCH"
+    echo "ERROR: Unsupported architecture: $HOST_ARCH" >&2
+    exit 1
+fi
+
 # Check if standalone menubar app exists
 if [ ! -f "$MENUBAR_APP/Contents/MacOS/menubar" ]; then
     log "ERROR: Standalone menubar app not found at $MENUBAR_APP/Contents/MacOS/menubar"
@@ -67,14 +81,14 @@ initialize_colima() {
         # Initialize Colima with VZ backend
         # Create minimal shared directory to avoid Downloads folder permission prompt
         mkdir -p "$DATA_DIR/shared"
-        arch -arm64 "$BIN_DIR/colima" start \
+        "$BIN_DIR/colima" start \
             --vm-type vz \
             --mount-type virtiofs \
             --mount "$DATA_DIR/shared:w" \
             --cpu 2 \
             --memory 4 \
             --disk 60 \
-            --arch aarch64 \
+            --arch "$VM_ARCH" \
             --network-address \
             >> "$LOG_FILE" 2>&1
 
@@ -90,9 +104,9 @@ initialize_colima() {
     fi
 
     # Ensure Colima is running
-    if ! arch -arm64 "$BIN_DIR/colima" status >/dev/null 2>&1; then
+    if ! "$BIN_DIR/colima" status >/dev/null 2>&1; then
         log "Starting Colima VM..."
-        arch -arm64 "$BIN_DIR/colima" start >> "$LOG_FILE" 2>&1
+        "$BIN_DIR/colima" start >> "$LOG_FILE" 2>&1
     fi
 }
 
@@ -100,7 +114,7 @@ initialize_colima() {
 # The menubar app will show gray icon and wait for services to be ready
 if [ "$FIRST_RUN" = true ]; then
     log "Launching menu bar application in background during setup..."
-    arch -arm64 "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
+    "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
     MENUBAR_PID=$!
     log "Menu bar app launched (PID: $MENUBAR_PID)"
 fi
@@ -133,6 +147,6 @@ fi
 
 # For subsequent launches, start menu bar app in background
 log "Launching menu bar application..."
-arch -arm64 "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
+"$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
 MENUBAR_PID=$!
 log "Menu bar app launched (PID: $MENUBAR_PID)"
