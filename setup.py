@@ -25,17 +25,16 @@ OPTIONS = {
         'CFBundleName': 'menubar',
         'CFBundleDisplayName': 'Onion.Press',
         'CFBundleIdentifier': 'press.onion.app',
-        'CFBundleVersion': '2.2.19',
-        'CFBundleShortVersionString': '2.2.19',
+        'CFBundleVersion': '2.2.20',
+        'CFBundleShortVersionString': '2.2.20',
         'LSUIElement': True,  # Run as menu bar app (no dock icon)
         'NSHighResolutionCapable': True,
         'NSRequiresAquaSystemAppearance': False,
         'LSApplicationCategoryType': 'public.app-category.utilities',
-        'NSAppleEventsUsageDescription': 'Onion.Press needs to control System Events to display native confirmation dialogs for important actions like uninstalling the app.',
     },
-    'packages': ['rumps', 'objc', 'AppKit'],
-    'includes': ['subprocess', 'threading', 'os', 'time', 'json'],
-    'excludes': ['tkinter', 'test', 'unittest'],
+    'packages': ['rumps', 'objc', 'AppKit', 'mnemonic'],
+    'includes': ['subprocess', 'threading', 'os', 'time', 'json', 'key_manager'],
+    'excludes': ['tkinter', 'test', 'unittest', 'urllib', 'urllib.request', 'urllib.error', 'http', 'http.client', 'http.server'],
     'arch': 'universal2',  # Build for both Intel and Apple Silicon
     'strip': True,  # Strip debug symbols to reduce size
     'optimize': 2,  # Optimize Python bytecode

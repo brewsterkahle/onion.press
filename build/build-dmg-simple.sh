@@ -185,14 +185,17 @@ fi
 
 chmod +x "$BIN_DIR"/*
 
-# Keep universal binaries for both Intel and Apple Silicon support
-echo "Verified universal binaries for cross-platform compatibility:"
+# Extract ARM64-only slices to prevent Rosetta emulation issues
+# Note: We keep universal binaries in source but extract ARM64 for the app
+# This prevents Lima/Colima from accidentally running under Rosetta
+echo "Extracting ARM64 slices from universal binaries..."
 cd "$BIN_DIR"
 for binary in colima docker docker-compose limactl; do
     if file "$binary" | grep -q "universal"; then
-        echo "  ✓ $binary (universal: x86_64 + arm64)"
-    else
-        echo "  ⚠️  $binary (single architecture)"
+        echo "  Extracting ARM64 slice for $binary"
+        lipo "$binary" -thin arm64 -output "${binary}.arm64"
+        mv "$binary" "${binary}.universal"
+        mv "${binary}.arm64" "$binary"
     fi
 done
 
@@ -247,7 +250,7 @@ if [ -d "py2app_dist/menubar.app" ]; then
     mkdir -p "$(dirname "$MENUBAR_STANDALONE")"
     cp -R "py2app_dist/menubar.app" "$MENUBAR_STANDALONE"
 
-    #Remove duplicate .universal binaries from previous builds
+    # Remove .universal backups (keep only ARM64 slices to avoid Rosetta)
     rm -f "$BIN_DIR"/*.universal
 
     # Remove the old Python scripts (no longer needed)

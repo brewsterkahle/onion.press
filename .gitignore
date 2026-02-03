@@ -35,3 +35,5 @@ onion.press.app/Contents/Resources/share/
 
 # Build artifacts
 build/onion.press.dmg
+py2app_build/
+py2app_dist/

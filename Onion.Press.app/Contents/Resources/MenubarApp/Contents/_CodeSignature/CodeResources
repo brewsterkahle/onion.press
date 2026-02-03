@@ -284,10 +284,6 @@
 		<data>
 		CiuTyuOM8Itb0rrdlYdxcuybMDo=
 		</data>
-		<key>Resources/lib/python3.14/lib-dynload/_scproxy.so</key>
-		<data>
-		rj5trf2rVZMZbByZ39s75yYN5/Q=
-		</data>
 		<key>Resources/lib/python3.14/lib-dynload/_sha1.so</key>
 		<data>
 		DMCsammFoAXrZZiPPvZ+1btA1EU=
@@ -367,6 +363,74 @@
 		<key>Resources/lib/python3.14/lib-dynload/zlib.so</key>
 		<data>
 		eowALYlDKBIwE+Xq96UYiLXsNPc=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/__init__.py</key>
+		<data>
+		c2lv8noJXlztJHi0I22k7Rsog3I=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/__pycache__/__init__.cpython-314.pyc</key>
+		<data>
+		ea5n2MQgkQCnHIRgmzV9QN1/90c=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/__pycache__/mnemonic.cpython-314.pyc</key>
+		<data>
+		X9TAT+0VFYybOqXormn24o1D770=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/mnemonic.py</key>
+		<data>
+		4jkV+7mWINumvnqKDFIvqkc1KJ8=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/py.typed</key>
+		<data>
+		TXu3odmwizLG/7r85ECVnQvBl4g=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/chinese_simplified.txt</key>
+		<data>
+		+QLufpbOSN5kBK32RPpA4mDZSf8=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/chinese_traditional.txt</key>
+		<data>
+		M+QBvqY/g6XqhNeN3HFhgJ73fws=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/czech.txt</key>
+		<data>
+		M6Cbm8mHqqhWD/74oXRZyZxj7Uo=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/english.txt</key>
+		<data>
+		stUkGuAnoOQPBqM9kJgJoZDyEP4=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/french.txt</key>
+		<data>
+		vNge2BkGvatX2XAKI0E6fiJIfQ4=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/italian.txt</key>
+		<data>
+		xiFOsc7Hse6Muh8xesYSxRiBRIo=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/japanese.txt</key>
+		<data>
+		pOwdpsEajCURlcetkIF92m/mRIg=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/korean.txt</key>
+		<data>
+		bFxfOOdWc9HOog8nAEaK3BY9hps=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/portuguese.txt</key>
+		<data>
+		Rycnhns5ShyRaGkMQVsAlNw6M4M=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/russian.txt</key>
+		<data>
+		d5K1Wxg4+qiSjCUo0wTCBE7Nh78=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/spanish.txt</key>
+		<data>
+		uZIF0klw4K2o4hgqGmjx60OclaE=
+		</data>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/turkish.txt</key>
+		<data>
+		wK7c2Cl/tYRWwKYIVOBLVH38lXY=
 		</data>
 		<key>Resources/lib/python3.14/objc/__init__.py</key>
 		<data>
@@ -722,7 +786,7 @@
 		</data>
 		<key>Resources/lib/python314.zip</key>
 		<data>
-		z2lHtlLRDMPQxVdoiH3z3w1Box0=
+		1Ur8NKVXnQ3fD7mV9g4iKnAedpg=
 		</data>
 		<key>Resources/menubar-icon-running.png</key>
 		<data>
@@ -738,7 +802,7 @@
 		</data>
 		<key>Resources/menubar.py</key>
 		<data>
-		2fUL0hHvo8rhwOD64xXK+5ZPwD0=
+		81Gp7opmEKR0lN+jcU1G+7TeV4A=
 		</data>
 		<key>Resources/openssl.ca/cert.pem</key>
 		<data>
@@ -750,7 +814,7 @@
 		</data>
 		<key>Resources/site.pyc</key>
 		<data>
-		12xTLUApG+hDa2ZZq1MJkP7WNpc=
+		fK8K6EoKDKZz3ExsmZqVk/SpWgM=
 		</data>
 		<key>Resources/zlib.cpython-314-darwin.so</key>
 		<data>
@@ -1602,17 +1666,6 @@
 			P2QU7c/eQClG5FDfjpZwK7m96lp607Zjf5R5ygaaRZg=
 			</data>
 		</dict>
-		<key>Resources/lib/python3.14/lib-dynload/_scproxy.so</key>
-		<dict>
-			<key>hash</key>
-			<data>
-			rj5trf2rVZMZbByZ39s75yYN5/Q=
-			</data>
-			<key>hash2</key>
-			<data>
-			un7SUQUcsAZrbznwi6WaDdR+c9girMd+17EKhlrz9jg=
-			</data>
-		</dict>
 		<key>Resources/lib/python3.14/lib-dynload/_sha1.so</key>
 		<dict>
 			<key>hash</key>
@@ -1831,6 +1884,193 @@
 			<key>hash2</key>
 			<data>
 			t7Ltb0klukka2xZKory2yM/ycLJOHx7A/hbtpQeCElU=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/__init__.py</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			c2lv8noJXlztJHi0I22k7Rsog3I=
+			</data>
+			<key>hash2</key>
+			<data>
+			xlJLxkmLgN4zK/WNEA067BEEL7tVkIWqC8JZVbLq9o0=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/__pycache__/__init__.cpython-314.pyc</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			ea5n2MQgkQCnHIRgmzV9QN1/90c=
+			</data>
+			<key>hash2</key>
+			<data>
+			lpW4pkYpvBqPy+ldCuh6MGym8p6N7B+kRYTXCovovSM=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/__pycache__/mnemonic.cpython-314.pyc</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			X9TAT+0VFYybOqXormn24o1D770=
+			</data>
+			<key>hash2</key>
+			<data>
+			CKYXJfVWjUtcfhlyp995rsymRldE/SJoCs2xWbuIqkM=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/mnemonic.py</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			4jkV+7mWINumvnqKDFIvqkc1KJ8=
+			</data>
+			<key>hash2</key>
+			<data>
+			Qtrx+087Q+tAKErdddgy44S746qm0ArmjIhQuKCm11s=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/py.typed</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			TXu3odmwizLG/7r85ECVnQvBl4g=
+			</data>
+			<key>hash2</key>
+			<data>
+			bWew9mHgMy8LqMu7RuqQXFXLBxh2CRx0dUbSx+3wE48=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/chinese_simplified.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			+QLufpbOSN5kBK32RPpA4mDZSf8=
+			</data>
+			<key>hash2</key>
+			<data>
+			XFlCeSvYNAy4snzVkvEBXt9WqMWyYnbuGKSCQo58VyY=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/chinese_traditional.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			M+QBvqY/g6XqhNeN3HFhgJ73fws=
+			</data>
+			<key>hash2</key>
+			<data>
+			QXsms9hQCkrj1ZcX1wEZUttvwvuEuAfz+UrHNOicG18=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/czech.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			M6Cbm8mHqqhWD/74oXRZyZxj7Uo=
+			</data>
+			<key>hash2</key>
+			<data>
+			foDhYcPpPZVUwu+3jU486/j8cn6cUuA7g7lEBr3Mlfw=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/english.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			stUkGuAnoOQPBqM9kJgJoZDyEP4=
+			</data>
+			<key>hash2</key>
+			<data>
+			L17tU6Rye0v4iA2PPxme/JDlhQNkbZ/47/Oi7Tsk29o=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/french.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			vNge2BkGvatX2XAKI0E6fiJIfQ4=
+			</data>
+			<key>hash2</key>
+			<data>
+			68OVmreAGh32usT6fZcGUvHfdraDzS9AA8lBxj1Rflk=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/italian.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			xiFOsc7Hse6Muh8xesYSxRiBRIo=
+			</data>
+			<key>hash2</key>
+			<data>
+			05LEn9twCiTNH86yN8H2XcwSj2s0qKrLWLWThLXGSMI=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/japanese.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			pOwdpsEajCURlcetkIF92m/mRIg=
+			</data>
+			<key>hash2</key>
+			<data>
+			Lu0K70kikeBhYz162BF/GisD64CinQ5OMResJSjQX/0=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/korean.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			bFxfOOdWc9HOog8nAEaK3BY9hps=
+			</data>
+			<key>hash2</key>
+			<data>
+			npX4bBZ96I9FDwqvieh/ZiSlf5c8Z7UW4zjo6LiJf2A=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/portuguese.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			Rycnhns5ShyRaGkMQVsAlNw6M4M=
+			</data>
+			<key>hash2</key>
+			<data>
+			JoXpwZTIKuZ+ELpZ2epTRaI9wJPpInb8U2H2Zn15zT8=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/russian.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			d5K1Wxg4+qiSjCUo0wTCBE7Nh78=
+			</data>
+			<key>hash2</key>
+			<data>
+			B/Ea8/B/0T2NdIWfREjYvKjx2dM23EhCUx7OoIMQOiY=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/spanish.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			uZIF0klw4K2o4hgqGmjx60OclaE=
+			</data>
+			<key>hash2</key>
+			<data>
+			RoRqWgE50ePLdyk+UhwoZfe824LETo0KBqLNDsukjAs=
+			</data>
+		</dict>
+		<key>Resources/lib/python3.14/mnemonic/wordlist/turkish.txt</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			wK7c2Cl/tYRWwKYIVOBLVH38lXY=
+			</data>
+			<key>hash2</key>
+			<data>
+			p9ycd5E3JhBse4uqAit+F2AdEYrPQKpgqx+8nJGzg6w=
 			</data>
 		</dict>
 		<key>Resources/lib/python3.14/objc/__init__.py</key>
@@ -2810,11 +3050,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			z2lHtlLRDMPQxVdoiH3z3w1Box0=
+			1Ur8NKVXnQ3fD7mV9g4iKnAedpg=
 			</data>
 			<key>hash2</key>
 			<data>
-			QXN0zixTV8Gx3MG8X8muWsr5INnQvPmCt3gmFzP38Nw=
+			iCJEXQM/WHUnNJhtnuvDX1ZBaoNKHVNCoaJD2/wR8IU=
 			</data>
 		</dict>
 		<key>Resources/menubar-icon-running.png</key>
@@ -2854,11 +3094,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			2fUL0hHvo8rhwOD64xXK+5ZPwD0=
+			81Gp7opmEKR0lN+jcU1G+7TeV4A=
 			</data>
 			<key>hash2</key>
 			<data>
-			DNCh0cUoK4EJLHJST1AEsvb/C5ItoU+WlDdvUSo1ydc=
+			XQQ1YhimEdxeIDRWvH1Vbj6jGjVJJVFNMJ+ycaHTGuQ=
 			</data>
 		</dict>
 		<key>Resources/openssl.ca/cert.pem</key>
@@ -2887,11 +3127,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			12xTLUApG+hDa2ZZq1MJkP7WNpc=
+			fK8K6EoKDKZz3ExsmZqVk/SpWgM=
 			</data>
 			<key>hash2</key>
 			<data>
-			KQhRCON3Fwcyb9IE1fV3SJcFPoJSQulnEi6qrn37sY4=
+			G90+DzwJQWfQQ/dz0Pt5DIaQPnO4Xe8hYJmW81VAjOU=
 			</data>
 		</dict>
 		<key>Resources/zlib.cpython-314-darwin.so</key>

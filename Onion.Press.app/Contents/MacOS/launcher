@@ -8,7 +8,7 @@ set -e
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 APP_DIR="$(dirname "$SCRIPT_DIR")"
 RESOURCES_DIR="$APP_DIR/Resources"
-MENUBAR_APP="$RESOURCES_DIR/MenubarApp/menubar.app"
+MENUBAR_APP="$RESOURCES_DIR/MenubarApp"
 DATA_DIR="$HOME/.onion.press"
 BIN_DIR="$RESOURCES_DIR/bin"
 COLIMA_HOME="$DATA_DIR/colima"
@@ -37,7 +37,7 @@ log "Starting onion.press launcher..."
 
 # Check if standalone menubar app exists
 if [ ! -f "$MENUBAR_APP/Contents/MacOS/menubar" ]; then
-    log "ERROR: Standalone menubar app not found at $MENUBAR_APP"
+    log "ERROR: Standalone menubar app not found at $MENUBAR_APP/Contents/MacOS/menubar"
     echo "ERROR: Application bundle is corrupted. Please reinstall Onion.Press." >&2
     exit 1
 fi
@@ -97,7 +97,7 @@ initialize_colima() {
 # The menubar app will show gray icon and wait for services to be ready
 if [ "$FIRST_RUN" = true ]; then
     log "Launching menu bar application in background during setup..."
-    "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
+    arch -arm64 "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
     MENUBAR_PID=$!
     log "Menu bar app launched (PID: $MENUBAR_PID)"
 fi
@@ -128,6 +128,8 @@ if [ "$FIRST_RUN" = true ]; then
     exit 0
 fi
 
-# For subsequent launches, start menu bar app normally
+# For subsequent launches, start menu bar app in background
 log "Launching menu bar application..."
-exec "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1
+arch -arm64 "$MENUBAR_APP/Contents/MacOS/menubar" >> "$LOG_FILE" 2>&1 &
+MENUBAR_PID=$!
+log "Menu bar app launched (PID: $MENUBAR_PID)"

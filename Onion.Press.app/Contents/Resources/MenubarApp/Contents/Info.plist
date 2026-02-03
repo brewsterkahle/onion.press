@@ -19,19 +19,17 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.2.19</string>
+	<string>2.2.20</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>2.2.19</string>
+	<string>2.2.20</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSHasLocalizedDisplayName</key>
 	<false/>
 	<key>LSUIElement</key>
 	<true/>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>Onion.Press needs to control System Events to display native confirmation dialogs for important actions like uninstalling the app.</string>
 	<key>NSAppleScriptEnabled</key>
 	<false/>
 	<key>NSHighResolutionCapable</key>
