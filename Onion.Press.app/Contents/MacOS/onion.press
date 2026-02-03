@@ -265,18 +265,9 @@ install_docker() {
         return 0
     else
         log "ERROR: Failed to initialize container runtime"
-        osascript <<EOF
-tell current application
-    activate
-    display dialog "Failed to initialize container runtime.
-
-Check the logs for details:
-$LOG_FILE
-
-Or file an issue at:
-https://github.com/brewsterkahle/onion.press/issues" buttons {"OK"} default button "OK" with icon stop with title "onion.press Error"
-end tell
-EOF
+        echo "ERROR: Failed to initialize container runtime." >&2
+        echo "Check the logs for details: $LOG_FILE" >&2
+        echo "Or file an issue at: https://github.com/brewsterkahle/onion.press/issues" >&2
         exit 1
     fi
 }
@@ -425,22 +416,7 @@ main() {
             log "onion.press is running!"
             log "Onion address: $ONION_ADDR"
             log "Local access: http://localhost:8080"
-
-            # Show success dialog
-            osascript <<EOF
-tell current application
-    activate
-    display dialog "onion.press is now running!
-
-Your onion address:
-$ONION_ADDR
-
-Local access (for testing):
-http://localhost:8080
-
-The menu bar app will show your status." buttons {"OK"} default button "OK" with icon file ((path to application "onion.press") as text) with title "onion.press"
-end tell
-EOF
+            log "onion.press is now running! Check the menu bar for status."
             ;;
 
         stop)

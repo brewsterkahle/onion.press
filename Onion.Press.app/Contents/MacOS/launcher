@@ -39,18 +39,10 @@ log "Starting onion.press launcher..."
 # Check for Python 3
 if ! command -v python3 >/dev/null 2>&1; then
     log "ERROR: Python 3 not found"
-    osascript <<EOF
-tell current application
-    activate
-    display dialog "Python 3 is required to run onion.press but was not found.
-
-macOS 12.3+ removed Python 2. Please install Python 3 from:
-https://www.python.org/downloads/
-
-Or install via Homebrew:
-brew install python3" buttons {"OK"} default button "OK" with icon stop with title "onion.press Error"
-end tell
-EOF
+    echo "ERROR: Python 3 is required to run onion.press but was not found." >&2
+    echo "macOS 12.3+ removed Python 2. Please install Python 3 from:" >&2
+    echo "https://www.python.org/downloads/" >&2
+    echo "Or install via Homebrew: brew install python3" >&2
     exit 1
 fi
 
@@ -81,16 +73,9 @@ initialize_colima() {
         MACOS_VERSION=$(sw_vers -productVersion | cut -d '.' -f 1)
         if [ "$MACOS_VERSION" -lt 13 ]; then
             log "ERROR: macOS 13+ required"
-            osascript <<EOF
-tell current application
-    activate
-    display dialog "onion.press requires macOS 13 (Ventura) or later.
-
-Your macOS version: $(sw_vers -productVersion)
-
-The bundled container runtime uses Apple's virtualization framework which requires macOS 13+." buttons {"OK"} default button "OK" with icon stop with title "onion.press Error"
-end tell
-EOF
+            echo "ERROR: onion.press requires macOS 13 (Ventura) or later." >&2
+            echo "Your macOS version: $(sw_vers -productVersion)" >&2
+            echo "The bundled container runtime uses Apple's virtualization framework which requires macOS 13+." >&2
             exit 1
         fi
 
@@ -110,15 +95,8 @@ EOF
             log "Colima initialized successfully"
         else
             log "ERROR: Colima init failed"
-            osascript <<EOF
-tell current application
-    activate
-    display dialog "Failed to initialize container runtime.
-
-Check the logs for details:
-$LOG_FILE" buttons {"OK"} default button "OK" with icon stop with title "onion.press Error"
-end tell
-EOF
+            echo "ERROR: Failed to initialize container runtime." >&2
+            echo "Check the logs for details: $LOG_FILE" >&2
             exit 1
         fi
     fi
