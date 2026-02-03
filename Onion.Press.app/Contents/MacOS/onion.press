@@ -248,12 +248,18 @@ install_ia_plugin() {
 install_docker() {
     log "Container runtime initialization required"
 
+    # Open Console.app to show progress
+    open -a Console "$LOG_FILE"
+    log "Console.app opened to show initialization progress"
+
     osascript <<EOF
 tell current application
     activate
     display dialog "Initializing bundled container runtime (2-3 minutes)...
 
-Please wait while onion.press sets up its container environment." buttons {"OK"} default button "OK" with icon file ((path to application "onion.press") as text) with title "onion.press Setup"
+Console.app has been opened so you can watch the progress.
+
+This window will close automatically when ready." buttons {"Cancel Setup", "Dismiss"} default button "Dismiss" cancel button "Cancel Setup" with icon file ((path to application "onion.press") as text) with title "onion.press Setup" giving up after 1800
 end tell
 EOF
 

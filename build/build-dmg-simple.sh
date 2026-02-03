@@ -128,14 +128,36 @@ if command -v git >/dev/null 2>&1; then
 
     # Build mkp224o (use ref10 for ARM64 compatibility)
     # Statically link libsodium so the binary works without Homebrew installed
-    SODIUM_LIB=$(brew --prefix libsodium 2>/dev/null)/lib/libsodium.a
+    SODIUM_PREFIX=$(brew --prefix libsodium 2>/dev/null)
+    SODIUM_STATIC="$SODIUM_PREFIX/lib/libsodium.a"
+
+    # Configure and build, forcing static libsodium linking
     if ./autogen.sh && \
-       CFLAGS="-I/opt/homebrew/include" LDFLAGS="$SODIUM_LIB" ./configure --enable-ref10 && \
-       make; then
-        # Copy binary
-        cp mkp224o "$TEMP_BIN_DIR/mkp224o"
+       CFLAGS="-I$SODIUM_PREFIX/include" \
+       ./configure --enable-ref10; then
+
+        # Modify the Makefile to force static linking
+        # Replace -lsodium with the full path to libsodium.a
+        # Use word boundary to avoid replacing libsodium in paths
+        sed -i.bak "s/ -lsodium/ ${SODIUM_STATIC////\\/}/g" GNUmakefile
+
+        if make; then
+            # Copy binary
+            cp mkp224o "$TEMP_BIN_DIR/mkp224o"
+
+            # Verify static linking worked
+            echo "  Checking mkp224o dependencies:"
+            if otool -L "$TEMP_BIN_DIR/mkp224o" | grep -q libsodium; then
+                echo "  ⚠️  WARNING: mkp224o still has dynamic libsodium dependency"
+                otool -L "$TEMP_BIN_DIR/mkp224o"
+            else
+                echo "  ✓ mkp224o successfully statically linked (no libsodium dependency)"
+            fi
+        else
+            echo "  WARNING: mkp224o make failed"
+        fi
     else
-        echo "  WARNING: mkp224o build failed. Vanity onion address generation will not be available."
+        echo "  WARNING: mkp224o configure failed. Vanity onion address generation will not be available."
         echo "  Users will get a random .onion address instead."
     fi
     cd "$TEMP_BIN_DIR"

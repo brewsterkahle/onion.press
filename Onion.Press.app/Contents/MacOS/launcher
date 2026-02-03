@@ -68,9 +68,13 @@ if [ ! -d "$VENV_DIR" ] || [ ! -f "$COLIMA_HOME/.initialized" ]; then
     FIRST_RUN=true
     log "First-time initialization detected"
 
-    # Show confirmation dialog before starting (with 10 second timeout)
+    # Open Console.app to show progress
+    open -a Console "$LOG_FILE"
+    log "Console.app opened to show setup progress"
+
+    # Show setup dialog
     ICON_PATH="$RESOURCES_DIR/app-icon.png"
-    RESPONSE=$(osascript <<EOF 2>&1 || echo "Continue"
+    RESPONSE=$(osascript <<EOF 2>&1 || echo "Dismiss"
 tell current application
     activate
     set dialogResult to display dialog "First-time setup required (2-3 minutes):
@@ -79,9 +83,11 @@ tell current application
 • Initializing container runtime
 • Downloading Docker images
 
-Click Cancel to abort or wait to continue..." buttons {"Cancel", "Continue"} default button "Continue" with icon POSIX file "$ICON_PATH" with title "Onion.Press Setup" giving up after 10
+Console.app has been opened so you can watch the progress.
+
+This window will close automatically when ready." buttons {"Cancel Setup", "Dismiss"} default button "Dismiss" cancel button "Cancel Setup" with icon POSIX file "$ICON_PATH" with title "Onion.Press Setup" giving up after 1800
     if gave up of dialogResult then
-        return "Continue"
+        return "Dismiss"
     else
         return button returned of dialogResult
     end if
@@ -91,7 +97,7 @@ EOF
 
     log "Dialog response was: '$RESPONSE'"
 
-    if [ "$RESPONSE" = "Cancel" ]; then
+    if [ "$RESPONSE" = "Cancel Setup" ]; then
         log "User cancelled first-time setup"
         exit 0
     fi

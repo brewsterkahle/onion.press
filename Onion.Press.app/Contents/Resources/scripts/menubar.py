@@ -94,6 +94,9 @@ class OnionPressApp(rumps.App):
         os.environ["DOCKER_HOST"] = f"unix://{self.colima_home}/default/docker.sock"
         os.environ["DOCKER_CONFIG"] = docker_config_dir
 
+        # Log version information at startup
+        self.log_version_info()
+
         # State
         self.onion_address = "Starting..."
         self.is_running = False
@@ -156,6 +159,52 @@ class OnionPressApp(rumps.App):
                 f.write(log_message)
         except Exception as e:
             print(f"Error writing to log: {e}")
+
+    def log_version_info(self):
+        """Log version information for all components at startup"""
+        self.log("=" * 60)
+        self.log(f"Onion.Press v{self.version} starting up")
+        self.log("=" * 60)
+
+        # macOS version
+        try:
+            result = subprocess.run(["sw_vers", "-productVersion"], capture_output=True, text=True, timeout=5)
+            macos_version = result.stdout.strip() if result.returncode == 0 else "Unknown"
+            self.log(f"macOS version: {macos_version}")
+        except:
+            pass
+
+        # Colima version
+        try:
+            colima_bin = os.path.join(self.bin_dir, "colima")
+            if os.path.exists(colima_bin):
+                result = subprocess.run([colima_bin, "version"], capture_output=True, text=True, timeout=5)
+                colima_version = result.stdout.strip().split('\n')[0] if result.returncode == 0 else "Unknown"
+                self.log(f"Colima version: {colima_version}")
+        except:
+            pass
+
+        # Docker version
+        try:
+            docker_bin = os.path.join(self.bin_dir, "docker")
+            if os.path.exists(docker_bin):
+                result = subprocess.run([docker_bin, "--version"], capture_output=True, text=True, timeout=5)
+                docker_version = result.stdout.strip() if result.returncode == 0 else "Unknown"
+                self.log(f"Docker version: {docker_version}")
+        except:
+            pass
+
+        # Docker Compose version
+        try:
+            compose_bin = os.path.join(self.bin_dir, "docker-compose")
+            if os.path.exists(compose_bin):
+                result = subprocess.run([compose_bin, "version"], capture_output=True, text=True, timeout=5)
+                compose_version = result.stdout.strip().split('\n')[0] if result.returncode == 0 else "Unknown"
+                self.log(f"Docker Compose version: {compose_version}")
+        except:
+            pass
+
+        self.log("=" * 60)
 
     def request_applescript_permission(self):
         """Request System Events permission lazily on first use that needs it.
