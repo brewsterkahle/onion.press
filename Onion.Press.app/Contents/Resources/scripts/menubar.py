@@ -47,7 +47,7 @@ class OnionPressApp(rumps.App):
             try:
                 import shutil
                 shutil.move(self.log_file, backup_log)
-            except:
+            except OSError:
                 pass  # If rotation fails, just append
 
         # Icon paths
@@ -69,16 +69,22 @@ class OnionPressApp(rumps.App):
             with open(docker_config_file, 'w') as f:
                 f.write('{\n\t"auths": {},\n\t"currentContext": "colima"\n}\n')
 
-        # Create symlink to docker-compose plugin if it exists in default location
+        # Install docker-compose plugin: prefer bundled, fall back to system
         cli_plugins_dir = os.path.join(docker_config_dir, "cli-plugins")
         os.makedirs(cli_plugins_dir, exist_ok=True)
-        compose_plugin_src = os.path.expanduser("~/.docker/cli-plugins/docker-compose")
         compose_plugin_dest = os.path.join(cli_plugins_dir, "docker-compose")
-        if os.path.islink(compose_plugin_src) and not os.path.exists(compose_plugin_dest):
+        bundled_compose = os.path.join(self.bin_dir, "docker-compose")
+        system_compose = os.path.expanduser("~/.docker/cli-plugins/docker-compose")
+        if os.path.isfile(bundled_compose) and not os.path.exists(compose_plugin_dest):
             try:
-                os.symlink(compose_plugin_src, compose_plugin_dest)
+                os.symlink(bundled_compose, compose_plugin_dest)
             except:
-                pass  # Ignore errors if symlink creation fails
+                pass
+        elif os.path.islink(system_compose) and not os.path.exists(compose_plugin_dest):
+            try:
+                os.symlink(system_compose, compose_plugin_dest)
+            except:
+                pass
 
         # Set up bundled binaries environment
         os.environ["PATH"] = f"{self.bin_dir}:{os.environ.get('PATH', '')}"
@@ -94,6 +100,7 @@ class OnionPressApp(rumps.App):
         self.is_ready = False  # WordPress is ready to serve requests
         self.checking = False
         self.web_log_process = None  # Background process for web logs
+        self.web_log_file_handle = None  # File handle for web log capture
         self.last_status_logged = None  # Track last logged status to avoid spam
         self.auto_opened_browser = False  # Track if we've auto-opened browser this session
         self.setup_dialog_process = None  # Track setup dialog process to dismiss it later
@@ -143,7 +150,8 @@ class OnionPressApp(rumps.App):
         try:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             log_message = f"[{timestamp}] {message}\n"
-            with open(self.log_file, 'a') as f:
+            fd = os.open(self.log_file, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
+            with os.fdopen(fd, 'a') as f:
                 f.write(log_message)
         except Exception as e:
             print(f"Error writing to log: {e}")
@@ -187,13 +195,13 @@ class OnionPressApp(rumps.App):
             web_log_file = os.path.join(self.app_support, "wordpress-access.log")
             docker_bin = os.path.join(self.bin_dir, "docker")
 
-            # Open log file for writing
-            log_file_handle = open(web_log_file, 'a')
+            # Open log file for writing (kept as instance var so we can close it later)
+            self.web_log_file_handle = open(web_log_file, 'a')
 
             # Start docker logs process in background
             self.web_log_process = subprocess.Popen(
                 [docker_bin, "logs", "-f", "--tail", "100", "onionpress-wordpress"],
-                stdout=log_file_handle,
+                stdout=self.web_log_file_handle,
                 stderr=subprocess.STDOUT,
                 env={
                     "DOCKER_HOST": f"unix://{self.colima_home}/default/docker.sock"
@@ -202,6 +210,9 @@ class OnionPressApp(rumps.App):
             print(f"Started web log capture to {web_log_file}")
         except Exception as e:
             print(f"Error starting web log capture: {e}")
+            if hasattr(self, 'web_log_file_handle') and self.web_log_file_handle:
+                self.web_log_file_handle.close()
+                self.web_log_file_handle = None
             self.web_log_process = None
 
     def stop_web_log_capture(self):
@@ -216,6 +227,13 @@ class OnionPressApp(rumps.App):
                 except:
                     pass
             self.web_log_process = None
+            # Close the log file handle to avoid leaking it
+            if hasattr(self, 'web_log_file_handle') and self.web_log_file_handle:
+                try:
+                    self.web_log_file_handle.close()
+                except:
+                    pass
+                self.web_log_file_handle = None
             print("Stopped web log capture")
 
     def ensure_docker_available(self):
@@ -451,7 +469,7 @@ end tell
             # Set up environment for docker commands
             docker_env = os.environ.copy()
             docker_env["DOCKER_HOST"] = f"unix://{self.colima_home}/default/docker.sock"
-            docker_env["DOCKER_CONFIG"] = os.path.join(os.path.expanduser("~/.onion.press"), "docker-config")
+            docker_env["DOCKER_CONFIG"] = os.path.join(self.app_support, "docker-config")
 
             # Check 1: Verify hostname file exists and matches
             result = subprocess.run(

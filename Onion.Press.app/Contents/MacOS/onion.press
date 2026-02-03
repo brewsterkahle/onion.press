@@ -314,11 +314,17 @@ start_containers() {
             log "Vanity address generated successfully"
 
             # Create volume and copy keys
-            docker volume create onionpress-tor-keys >> "$LOG_FILE" 2>&1
-            docker run --rm \
+            if ! docker volume create onionpress-tor-keys >> "$LOG_FILE" 2>&1; then
+                log "ERROR: Failed to create tor-keys volume"
+                return 1
+            fi
+            if ! docker run --rm \
                 -v onionpress-tor-keys:/dest \
                 --mount type=bind,source="$VANITY_DIR",target=/src \
-                alpine sh -c 'mkdir -p /dest/wordpress && cp -r /src/* /dest/wordpress/' >> "$LOG_FILE" 2>&1
+                alpine sh -c 'mkdir -p /dest/wordpress && cp -r /src/* /dest/wordpress/' >> "$LOG_FILE" 2>&1; then
+                log "ERROR: Failed to copy vanity keys to tor volume"
+                return 1
+            fi
 
             log "Vanity keys installed to tor volume"
         else
@@ -326,8 +332,21 @@ start_containers() {
         fi
     fi
 
-    # Just start containers - the menubar app will handle image pulling
-    docker compose up -d >> "$LOG_FILE" 2>&1
+    # Start containers with retry on transient failures (e.g. network hiccups during image pull)
+    local max_attempts=3
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if docker compose up -d >> "$LOG_FILE" 2>&1; then
+            break
+        fi
+        log "WARNING: 'docker compose up -d' failed (attempt $attempt/$max_attempts). Check $LOG_FILE for details."
+        if [ $attempt -eq $max_attempts ]; then
+            log "ERROR: 'docker compose up -d' failed after $max_attempts attempts."
+            return 1
+        fi
+        attempt=$((attempt + 1))
+        sleep 5
+    done
     log "Containers starting (images will download if needed)"
 
     # Install Internet Archive Wayback Machine Link Fixer plugin

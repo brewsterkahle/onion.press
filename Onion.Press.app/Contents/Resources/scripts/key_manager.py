@@ -10,9 +10,10 @@ import base64
 try:
     from mnemonic import Mnemonic
 except ImportError:
-    print("ERROR: mnemonic library not installed. Installing...")
-    subprocess.run(['pip3', 'install', 'mnemonic'], check=True)
-    from mnemonic import Mnemonic
+    raise ImportError(
+        "Required 'mnemonic' package is not installed. "
+        "Install it with: pip3 install mnemonic"
+    )
 
 # Initialize BIP39 mnemonic encoder with English wordlist
 mnemo = Mnemonic("english")
@@ -99,11 +100,17 @@ def extract_private_key():
 
         # Find the key data (skip the header)
         # The header is 32 bytes, then 64 bytes of actual key
+        expected_header = b'== ed25519v1-secret: type0 =='
         if len(key_data) == 96:
-            # Skip first 32 bytes (header)
+            header = key_data[:32]
+            if not header.startswith(expected_header):
+                raise Exception(
+                    "Key file header mismatch: expected ed25519v1-secret header. "
+                    "File may be corrupt or in an unsupported format."
+                )
             return key_data[32:]
         elif len(key_data) == 64:
-            # Already just the key
+            # Already just the key (no header)
             return key_data
         else:
             raise Exception(f"Unexpected key file size: {len(key_data)} bytes")
@@ -202,11 +209,24 @@ def write_private_key(key_bytes):
             return True
 
         finally:
-            # Securely delete temporary file
+            # Securely delete temporary file (multi-pass for SSD wear leveling)
             if os.path.exists(temp_path):
-                # Overwrite with zeros before deleting
+                file_len = len(full_key)
+                # Pass 1: overwrite with random bytes
                 with open(temp_path, 'wb') as f:
-                    f.write(b'\x00' * len(full_key))
+                    f.write(os.urandom(file_len))
+                    f.flush()
+                    os.fsync(f.fileno())
+                # Pass 2: overwrite with zeros
+                with open(temp_path, 'wb') as f:
+                    f.write(b'\x00' * file_len)
+                    f.flush()
+                    os.fsync(f.fileno())
+                # Pass 3: overwrite with ones
+                with open(temp_path, 'wb') as f:
+                    f.write(b'\xff' * file_len)
+                    f.flush()
+                    os.fsync(f.fileno())
                 os.unlink(temp_path)
 
     except Exception as e:

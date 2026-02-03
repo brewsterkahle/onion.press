@@ -1,6 +1,6 @@
 services:
   tor:
-    image: goldy/tor-hidden-service:latest
+    image: goldy/tor-hidden-service:v0.4.7.12-54c0e54
     container_name: onionpress-tor
     environment:
       # WordPress is the service name we're exposing
@@ -15,7 +15,7 @@ services:
       - onionpress-network
 
   wordpress:
-    image: wordpress:latest
+    image: wordpress:6.7
     container_name: onionpress-wordpress
     environment:
       - WORDPRESS_DB_HOST=db:3306
@@ -37,7 +37,7 @@ services:
       - "127.0.0.1:8080:80"
 
   db:
-    image: mariadb:latest
+    image: mariadb:11.6
     container_name: onionpress-db
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}

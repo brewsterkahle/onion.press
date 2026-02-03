@@ -127,12 +127,15 @@ if command -v git >/dev/null 2>&1; then
     fi
 
     # Build mkp224o (use ref10 for ARM64 compatibility)
-    ./autogen.sh
-    CFLAGS="-I/opt/homebrew/include" LDFLAGS="-L/opt/homebrew/lib" ./configure --enable-ref10
-    make
-
-    # Copy binary
-    cp mkp224o "$TEMP_BIN_DIR/mkp224o"
+    if ./autogen.sh && \
+       CFLAGS="-I/opt/homebrew/include" LDFLAGS="-L/opt/homebrew/lib" ./configure --enable-ref10 && \
+       make; then
+        # Copy binary
+        cp mkp224o "$TEMP_BIN_DIR/mkp224o"
+    else
+        echo "  WARNING: mkp224o build failed. Vanity onion address generation will not be available."
+        echo "  Users will get a random .onion address instead."
+    fi
     cd "$TEMP_BIN_DIR"
 else
     echo "  WARNING: git not found, skipping mkp224o build"
