@@ -12,14 +12,14 @@ onion.press is a macOS application that bundles WordPress with a Tor onion servi
 
 ## ⚠️ Important Notice
 
-**This is a proof of concept.** This should **not** be considered a private publishing tool, even though it uses Tor which is often associated with privacy and anonymity.
+This should **not** be considered a privacy-enhanced publishing tool, even though it uses Tor which is often associated with privacy and anonymity.
 
 Tor is being used in this project for its **practical networking capabilities**:
 - **Works behind NAT and firewalls** - No port forwarding or router configuration needed
 - **No DNS registration required** - Your .onion address works immediately without buying domains
 - **Built-in encryption** - No need to obtain HTTPS/SSL certificates
 
-**This is not designed for anonymous or private publishing.** If privacy is your primary concern, you should use dedicated privacy tools and consult security experts about your threat model.
+**This is likely not safe for anonymous publishing.** If privacy is your primary concern, you should use dedicated privacy tools and consult security experts about your threat model.
 
 ## Features
 
@@ -29,19 +29,17 @@ Tor is being used in this project for its **practical networking capabilities**:
 - 🌐 **No DNS Registration Needed**: Your .onion address works immediately - no domain registration, no DNS configuration
 - 🏠 **Works Behind Firewalls**: Runs on home, school, or work networks even behind firewalls or NAT - no port forwarding required
 - ✨ **Vanity Onion Addresses**: All installations generate addresses starting with "op2" for easy identification
-- 📚 **Internet Archive Integration**: Automatically installs the [Wayback Machine Link Fixer](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/) plugin to combat link rot
+- 📚 **Internet Archive Integration**: Automatically installs the [Wayback Machine Link Fixer](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/) plugin to combat link rot by default
 - 🐳 **Container-Based**: Uses Docker containers for easy management and isolation
 - 📱 **Menu Bar App**: Simple menu bar interface to control your site
 - 🚀 **One-Click Install**: Download the DMG, drag to Applications, and launch
-- 🌐 **Tor-Only Access**: Your site is only accessible through Tor (not for anonymity, but for convenience)
+- 🌐 **Tor-Only Access**: Your site is only accessible through Tor (e.g. Tor and Brave Browsers)
 
 ## Requirements
 
 - macOS 13.0 (Ventura) or later
 - Python 3 (pre-installed on macOS 12.3+, or install from [python.org](https://www.python.org/downloads/))
 - Internet connection for first-time setup
-
-**No external Docker installation required!** All container runtime components are bundled.
 
 ## Installation
 
@@ -52,21 +50,21 @@ Tor is being used in this project for its **practical networking capabilities**:
    - The app will generate your vanity onion address (starting with "op2") - takes < 1 second
    - The app will initialize its bundled container runtime (Colima) - takes ~2-3 minutes
    - It will download WordPress, MariaDB, and Tor container images (~1GB)
-   - Total setup: 3-5 minutes depending on your internet connection
-   - Subsequent launches are instant
+   - Total 1-time setup: 3-5 minutes depending on your internet connection
+   - Launching the site is about a minute.
 
 ### macOS Security Warning
 
-Since this app is not code-signed with an Apple Developer certificate, macOS will show a security warning on first launch. This is normal for open-source software.
+Since this app is not code-signed with an Apple Developer certificate, macOS on first launch. This is normal for open-source software.
 
 **Method 1 - System Settings (Recommended):**
-1. Try to open the DMG or app - you'll see a security warning
+1. Open the app when in your Applications folder - you'll see a security warning.  Hit Done.
 2. Open **System Settings** → **Privacy & Security**
 3. Scroll down and click **"Open Anyway"** next to the Onion.Press warning
-4. Click **"Open"** in the confirmation dialog
+4. Click **"Open Anyway"** in the confirmation dialog, and enter your computer's password
 
 **Method 2 - Right-Click:**
-1. Right-click (or Control-click) on the DMG or app
+1. Right-click (or Control-click) on the Onion.Press app in you Application folder
 2. Select **"Open"**
 3. Click **"Open"** in the dialog
 
@@ -77,7 +75,6 @@ If you're comfortable with the terminal, you can remove the quarantine flag:
 # After moving to Applications folder
 xattr -cr /Applications/Onion.Press.app
 ```
-
 This removes macOS's quarantine attribute and allows the app to launch without warnings.
 
 ## Usage
@@ -99,7 +96,7 @@ Once installed, onion.press appears in your menu bar with an onion icon (🧅):
 
 **Manual Updates** (Recommended):
 Click "Check for Updates..." in the menu to:
-1. Check for new onion.press app versions
+1. Check for new Onion.Press app versions
 2. Download updated WordPress, MariaDB, and Tor container images
 3. Apply security patches and new features
 
@@ -160,7 +157,7 @@ Your onion address is derived from a private key. You can back up and restore th
 
 ### Internet Archive Wayback Machine Link Fixer
 
-onion.press automatically installs and activates the [Internet Archive Wayback Machine Link Fixer plugin](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/), which helps combat link rot by:
+Onion.Press automatically installs and activates the [Internet Archive Wayback Machine Link Fixer plugin](https://wordpress.org/plugins/internet-archive-wayback-machine-link-fixer/), which helps combat link rot by:
 
 - Automatically scanning your posts for outbound links
 - Creating archived versions in the Wayback Machine
@@ -239,14 +236,8 @@ This will create `onion.press.dmg` in the `build/` directory.
 
 ## Troubleshooting
 
-### "Python 3 not found"
-Install Python 3 from [python.org](https://www.python.org/downloads/) or via Homebrew:
-```bash
-brew install python3
-```
-
 ### "macOS version too old"
-onion.press requires macOS 13 (Ventura) or later for Apple's native virtualization framework.
+Onion.Press requires macOS 13 (Ventura) or later for Apple's native virtualization framework.
 
 ### Containers won't start
 Check the logs via the menu bar app or run:
@@ -258,37 +249,34 @@ tail -f ~/.onion.press/colima/colima.log
 ### Onion address not generating
 Wait 30-60 seconds for Tor to generate your onion address. Check logs if it takes longer.
 
-### Reset everything
-If you encounter persistent issues:
-```bash
-# Stop the app first, then:
-rm -rf ~/.onion.press
-# Relaunch onion.press
-```
-
 ## Security Notes
 
 - Change the default WordPress admin password immediately after installation
-- The default database passwords are set in `docker-compose.yml` - consider changing them
 - Your site is only accessible via Tor by default (port 8080 is localhost-only for testing)
 - Keep WordPress and plugins updated regularly
 
 ## Uninstalling
 
-1. Stop the service from the menu bar app
+1. Click Uninstall from the menu bar app 
 2. Quit Onion.Press
 3. Move `Onion.Press.app` to Trash
-4. Remove data directory: `rm -rf ~/.onion.press`
-5. Remove Docker volumes:
+   or
+1. Quit Onion.Press
+2. Move `Onion.Press.app` to Trash
+3. Remove data directory: `rm -rf ~/.onion.press`
+4. Remove Docker volumes:
    ```bash
    docker volume rm onionpress-tor-keys onionpress-wordpress-data onionpress-db-data
    ```
+5. Reboot
 
 ## License
 
-MIT License - See LICENSE file for details
+AGPL 3 License - See LICENSE file for details
 
 ## Credits
+
+A Decentralized Web project
 
 Built with:
 - [WordPress](https://wordpress.org/) - Open source content management system
