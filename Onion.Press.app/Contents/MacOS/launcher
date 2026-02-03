@@ -65,9 +65,12 @@ initialize_colima() {
         fi
 
         # Initialize Colima with VZ backend
-        "$BIN_DIR/colima" start \
+        # Create minimal shared directory to avoid Downloads folder permission prompt
+        mkdir -p "$DATA_DIR/shared"
+        arch -arm64 "$BIN_DIR/colima" start \
             --vm-type vz \
             --mount-type virtiofs \
+            --mount "$DATA_DIR/shared:w" \
             --cpu 2 \
             --memory 4 \
             --disk 60 \
@@ -87,9 +90,9 @@ initialize_colima() {
     fi
 
     # Ensure Colima is running
-    if ! "$BIN_DIR/colima" status >/dev/null 2>&1; then
+    if ! arch -arm64 "$BIN_DIR/colima" status >/dev/null 2>&1; then
         log "Starting Colima VM..."
-        "$BIN_DIR/colima" start >> "$LOG_FILE" 2>&1
+        arch -arm64 "$BIN_DIR/colima" start >> "$LOG_FILE" 2>&1
     fi
 }
 
