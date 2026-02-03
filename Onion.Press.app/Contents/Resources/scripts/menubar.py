@@ -701,12 +701,27 @@ end tell
                 self.log(f"Auto-opening Tor Browser: {url}")
                 subprocess.run(["open", "-a", "Tor Browser", url])
             else:
-                self.log("Tor Browser not installed - showing download notification")
-                rumps.notification(
-                    title="Tor Browser Suggested",
-                    subtitle="Download Tor or Brave Browser to access your site",
-                    message=f"Your site is ready at {self.onion_address}"
-                )
+                self.log("Tor Browser not installed - showing download dialog")
+                icon_path = os.path.join(self.resources_dir, "app-icon.png")
+                address = self.onion_address
+                try:
+                    result = subprocess.run(["osascript", "-e", f'''
+tell current application
+    activate
+    set userChoice to button returned of (display dialog "Your site is ready!
+
+{address}
+
+To visit your site, you need Tor Browser or Brave Browser.
+
+Would you like to download Tor Browser now?" buttons {{"Later", "Download Tor Browser"}} default button "Download Tor Browser" with icon POSIX file "{icon_path}" with title "Onion.Press")
+    return userChoice
+end tell
+'''], capture_output=True, text=True, timeout=60)
+                    if "Download" in (result.stdout or ""):
+                        subprocess.run(["open", "https://www.torproject.org/download/"])
+                except Exception as e:
+                    self.log(f"Download dialog failed: {e}")
 
     @rumps.clicked("Start")
     def start_service(self, _):
@@ -1148,15 +1163,17 @@ DO NOT share these words with anyone."""
             )
 
     def show_notification(self, message, subtitle=""):
-        """Show a macOS notification"""
-        try:
-            rumps.notification(
-                title="Onion.Press Setup",
-                subtitle=subtitle,
-                message=message
-            )
-        except:
-            pass
+        """Show a macOS notification (thread-safe via main queue dispatch)"""
+        def _notify():
+            try:
+                rumps.notification(
+                    title="Onion.Press Setup",
+                    subtitle=subtitle,
+                    message=message
+                )
+            except:
+                pass
+        AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(_notify)
 
     def show_setup_dialog(self):
         """Show a persistent setup dialog during first run that stays until service is ready"""
