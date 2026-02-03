@@ -106,7 +106,7 @@ class OnionPressApp(rumps.App):
         self.web_log_file_handle = None  # File handle for web log capture
         self.last_status_logged = None  # Track last logged status to avoid spam
         self.auto_opened_browser = False  # Track if we've auto-opened browser this session
-        self.setup_dialog_process = None  # Track setup dialog process to dismiss it later
+        self.setup_dialog_showing = False  # Track if setup dialog is currently showing
         self.monitoring_tor_install = False  # Track if we're monitoring for Tor Browser installation
 
         # Menu items
@@ -159,6 +159,72 @@ class OnionPressApp(rumps.App):
                 f.write(log_message)
         except Exception as e:
             print(f"Error writing to log: {e}")
+
+    def show_native_alert(self, title, message, buttons=["OK"], default_button=0, cancel_button=None, style="informational"):
+        """Show a native macOS alert dialog using AppKit (no permission prompts, shows custom icon)
+
+        Args:
+            title: Dialog title
+            message: Dialog message text
+            buttons: List of button labels (default: ["OK"])
+            default_button: Index of default button (default: 0)
+            cancel_button: Index of cancel button or None (default: None)
+            style: "informational", "warning", or "critical" (default: "informational")
+
+        Returns:
+            Index of clicked button (0-based), or None if dialog dismissed
+        """
+        def show_dialog():
+            alert = AppKit.NSAlert.alloc().init()
+            alert.setMessageText_(title)
+            alert.setInformativeText_(message)
+
+            # Set alert style
+            if style == "warning":
+                alert.setAlertStyle_(AppKit.NSAlertStyleWarning)
+            elif style == "critical":
+                alert.setAlertStyle_(AppKit.NSAlertStyleCritical)
+            else:
+                alert.setAlertStyle_(AppKit.NSAlertStyleInformational)
+
+            # Add buttons (first button is default)
+            for i, button_text in enumerate(buttons):
+                btn = alert.addButtonWithTitle_(button_text)
+                if i == default_button:
+                    btn.setKeyEquivalent_("\r")  # Return key
+                elif cancel_button is not None and i == cancel_button:
+                    btn.setKeyEquivalent_("\x1b")  # Escape key
+
+            # Set app icon if available
+            icon_path = os.path.join(self.resources_dir, "app-icon.png")
+            if os.path.exists(icon_path):
+                icon = AppKit.NSImage.alloc().initWithContentsOfFile_(icon_path)
+                if icon:
+                    alert.setIcon_(icon)
+
+            # Show modal dialog and get response
+            response = alert.runModal()
+
+            # Convert response to button index
+            # NSAlertFirstButtonReturn = 1000, second = 1001, etc.
+            button_index = response - 1000
+            return button_index if button_index >= 0 else None
+
+        # Must run on main thread
+        result_container = [None]
+        def run_on_main():
+            result_container[0] = show_dialog()
+
+        AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(run_on_main)
+
+        # Wait for result (with timeout)
+        max_wait = 300  # 5 minutes
+        waited = 0
+        while result_container[0] is None and waited < max_wait:
+            time.sleep(0.1)
+            waited += 0.1
+
+        return result_container[0]
 
     def log_version_info(self):
         """Log version information for all components at startup"""
@@ -1435,54 +1501,38 @@ DO NOT share these words with anyone."""
             # Dismiss any existing dialog first
             self.dismiss_setup_dialog()
 
-            # Show dialog with "Dismiss" and "Cancel Setup" buttons
-            # User can dismiss to hide the dialog, or cancel to stop setup
-            icon_path = os.path.join(self.resources_dir, "app-icon.png")
-
-            script = f'''
-tell current application
-    activate
-    display dialog "Setting up Onion.Press for first use...
-
-• Downloading container images
-• Configuring Tor hidden service
-• Starting WordPress
-
-This may take 2-5 minutes depending on your internet speed.
-
-Console.app has been opened so you can watch the progress.
-
-This window will close automatically when your site is ready." buttons {{"Cancel Setup", "Dismiss"}} default button "Dismiss" cancel button "Cancel Setup" with icon POSIX file "{icon_path}" with title "Onion.Press Setup" giving up after 1800
-end tell
-'''
-
-            # Start the dialog process
-            self.setup_dialog_process = subprocess.Popen(
-                ["osascript", "-e", script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True
-            )
-
-            # Monitor if user clicks Cancel Setup
-            def monitor_result():
+            # Show native dialog in background thread so it doesn't block
+            def show_and_monitor():
                 try:
-                    stdout, _ = self.setup_dialog_process.communicate(timeout=1800)
-                    # If user clicked Cancel Setup, stop setup
-                    # (returncode 1 = cancel button clicked)
-                    result = self.setup_dialog_process.returncode
-                    if result == 1:
+                    # Show native alert dialog (no osascript = no permission prompts)
+                    button_index = self.show_native_alert(
+                        title="Onion.Press Setup",
+                        message="Setting up Onion.Press for first use...\n\n• Downloading container images\n• Configuring Tor hidden service\n• Starting WordPress\n\nThis may take 2-5 minutes depending on your internet speed.\n\nConsole.app has been opened so you can watch the progress.\n\nThis window will close automatically when your site is ready.",
+                        buttons=["Dismiss", "Cancel Setup"],
+                        default_button=0,
+                        cancel_button=1,
+                        style="informational"
+                    )
+
+                    # If user clicked Cancel Setup (button index 1)
+                    if button_index == 1:
                         self.log("User cancelled setup - stopping services")
                         subprocess.run([self.launcher_script, "stop"], capture_output=True, timeout=30)
-                    # If user clicked Dismiss (returncode 0) or timeout, just continue
-                except:
-                    pass  # Dialog was dismissed programmatically or timed out
+                        self.setup_dialog_showing = False
+                    elif button_index == 0:
+                        self.log("User dismissed setup dialog")
+                        self.setup_dialog_showing = False
+                except Exception as e:
+                    self.log(f"Error in setup dialog: {e}")
+                    self.setup_dialog_showing = False
 
-            threading.Thread(target=monitor_result, daemon=True).start()
-            self.log("Setup dialog shown via osascript")
+            self.setup_dialog_showing = True
+            threading.Thread(target=show_and_monitor, daemon=True).start()
+            self.log("Setup dialog shown (native NSAlert)")
         except Exception as e:
-            self.log(f"Error showing setup dialog via osascript (possibly permissions): {e}")
-            # Fallback to notification if osascript fails
+            self.log(f"Error showing setup dialog: {e}")
+            self.setup_dialog_showing = False
+            # Fallback to notification if dialog fails
             try:
                 self.show_notification("Setting up onion.press for first use...",
                                      "Console.app opened to show progress. Downloading images (2-5 min)")
@@ -1491,18 +1541,11 @@ end tell
 
     def dismiss_setup_dialog(self):
         """Dismiss the setup dialog if it's showing"""
-        if self.setup_dialog_process is not None:
-            try:
-                # Terminate the osascript process which closes the dialog
-                self.setup_dialog_process.terminate()
-                self.setup_dialog_process.wait(timeout=2)
-                self.log("Setup dialog dismissed")
-            except:
-                try:
-                    self.setup_dialog_process.kill()
-                except:
-                    pass
-            self.setup_dialog_process = None
+        if self.setup_dialog_showing:
+            self.setup_dialog_showing = False
+            self.log("Setup dialog marked for dismissal")
+            # Note: Native NSAlert dialogs close when user clicks a button
+            # We can't programmatically force-close them, but they auto-close on completion
 
     def monitor_image_downloads(self):
         """Monitor Docker image downloads and show progress notifications"""
