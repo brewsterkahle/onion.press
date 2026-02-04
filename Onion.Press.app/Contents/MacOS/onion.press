@@ -196,7 +196,7 @@ install_ia_plugin() {
     fi
 
     # Check if installation scripts exist
-    if [ ! -d "$SCRIPTS_DIR" ] || [ ! -f "$SCRIPTS_DIR/install_plugin.py" ]; then
+    if [ ! -d "$SCRIPTS_DIR" ] || [ ! -f "$SCRIPTS_DIR/install_plugin.sh" ]; then
         log "Plugin installation scripts not available, skipping"
         return 0
     fi
@@ -209,12 +209,7 @@ install_ia_plugin() {
     if docker compose exec -T wordpress test -f /var/www/html/wp-content/plugins/internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php 2>/dev/null; then
         # Plugin is installed, try to activate if WordPress is configured
         log "Internet Archive plugin already installed, checking activation status..."
-        # Use Python from homebrew or system, avoiding menubar's bundled Python
-        local python_bin=$(which -a python3 | grep -v MenubarApp | head -1)
-        if [ -z "$python_bin" ]; then
-            python_bin="/usr/bin/python3"
-        fi
-        if "$python_bin" "$SCRIPTS_DIR/activate_plugin.py" "onionpress-wordpress" \
+        if "$SCRIPTS_DIR/activate_plugin.sh" "onionpress-wordpress" \
             "internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php" >>"$LOG_FILE" 2>&1; then
             log "✓ Internet Archive Wayback Machine Link Fixer plugin is active"
         else
@@ -228,14 +223,8 @@ install_ia_plugin() {
     # Create temp directory for plugin download
     local temp_dir=$(mktemp -d)
 
-    # Use Python from homebrew or system, avoiding menubar's bundled Python
-    local python_bin=$(which -a python3 | grep -v MenubarApp | head -1)
-    if [ -z "$python_bin" ]; then
-        python_bin="/usr/bin/python3"
-    fi
-
-    # Download and verify plugin using Python script with checksum verification
-    if "$python_bin" "$SCRIPTS_DIR/install_plugin.py" "internet-archive-wayback-machine-link-fixer" "$temp_dir" >>"$LOG_FILE" 2>&1; then
+    # Download and verify plugin using bash script with checksum verification
+    if "$SCRIPTS_DIR/install_plugin.sh" "internet-archive-wayback-machine-link-fixer" "$temp_dir" >>"$LOG_FILE" 2>&1; then
         # Copy plugin to WordPress container
         if docker cp "$temp_dir/internet-archive-wayback-machine-link-fixer" onionpress-wordpress:/var/www/html/wp-content/plugins/ 2>>"$LOG_FILE" && \
             cd "$DOCKER_DIR" && \
@@ -243,8 +232,8 @@ install_ia_plugin() {
             log "✓ Internet Archive Wayback Machine Link Fixer plugin installed with verified checksum!"
 
             # Try to activate immediately if WordPress is configured
-            if "$python_bin" "$SCRIPTS_DIR/activate_plugin.py" "onionpress-wordpress" \
-                "internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.php" >>"$LOG_FILE" 2>&1; then
+            if "$SCRIPTS_DIR/activate_plugin.sh" "onionpress-wordpress" \
+                "internet-archive-wayback-machine-link-fixer/internet-archive-wayback-machine-link-fixer.ph p" >>"$LOG_FILE" 2>&1; then
                 log "✓ Plugin automatically activated!"
             else
                 log "Plugin will auto-activate after WordPress setup"
