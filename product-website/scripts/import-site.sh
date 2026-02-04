@@ -74,6 +74,24 @@ else
     echo "  (no uploads to import)"
 fi
 
+echo "Importing hit counter data..."
+if [ -d "$CONTENT_DIR/onionpress-data" ]; then
+    # Ensure directory exists in container
+    docker exec onionpress-wordpress mkdir -p /var/lib/onionpress
+
+    # Copy hit counter data if it exists
+    if [ -f "$CONTENT_DIR/onionpress-data/hit-counter.txt" ]; then
+        docker cp "$CONTENT_DIR/onionpress-data/hit-counter.txt" onionpress-wordpress:/var/lib/onionpress/hit-counter.txt
+        docker exec onionpress-wordpress chown www-data:www-data /var/lib/onionpress/hit-counter.txt
+        docker exec onionpress-wordpress chmod 644 /var/lib/onionpress/hit-counter.txt
+        echo "  ✓ Hit counter imported"
+    else
+        echo "  (no hit counter data to import)"
+    fi
+else
+    echo "  (no persistent data to import)"
+fi
+
 # Import database
 echo
 echo "Importing database..."

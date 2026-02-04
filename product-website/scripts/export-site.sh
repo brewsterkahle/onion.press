@@ -38,6 +38,11 @@ docker cp onionpress-wordpress:/var/www/html/wp-content/plugins/. "$CONTENT_DIR/
 echo "Exporting uploads (media files)..."
 docker cp onionpress-wordpress:/var/www/html/wp-content/uploads/. "$CONTENT_DIR/uploads/" 2>/dev/null || echo "  (no uploads)"
 
+# Export hit counter data
+echo "Exporting hit counter data..."
+mkdir -p "$CONTENT_DIR/onionpress-data"
+docker cp onionpress-wordpress:/var/lib/onionpress/hit-counter.txt "$CONTENT_DIR/onionpress-data/hit-counter.txt" 2>/dev/null || echo "  (no hit counter data yet)"
+
 # Export database
 echo "Exporting database..."
 docker exec onionpress-wordpress wp db export /tmp/product-website.sql \
@@ -72,6 +77,7 @@ echo "Files exported:"
 echo "  - content/themes/     (WordPress themes)"
 echo "  - content/plugins/    (WordPress plugins)"
 echo "  - content/uploads/    (Media files)"
+echo "  - content/onionpress-data/ (Hit counter and persistent data)"
 echo "  - database/product-website.sql (Database with URL placeholders)"
 echo
 echo "Next steps:"
