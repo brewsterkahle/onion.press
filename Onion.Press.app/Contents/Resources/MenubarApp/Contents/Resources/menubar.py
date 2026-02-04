@@ -23,7 +23,7 @@ import key_manager
 
 class OnionPressApp(rumps.App):
     def __init__(self):
-        # Get paths first
+        # Get paths first (fast - no I/O)
         self.app_support = os.path.expanduser("~/.onion.press")
         self.script_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -65,70 +65,19 @@ class OnionPressApp(rumps.App):
         self.info_plist = os.path.join(self.contents_dir, "Info.plist")
         self.log_file = os.path.join(self.app_support, "onion.press.log")
 
-        # Rotate log file on startup to avoid confusion with old sessions
-        if os.path.exists(self.log_file):
-            # Keep only the last session as backup
-            backup_log = os.path.join(self.app_support, "onion.press.log.prev")
-            try:
-                import shutil
-                shutil.move(self.log_file, backup_log)
-            except OSError:
-                pass  # If rotation fails, just append
-
-        # Icon paths
+        # Icon paths (fast - no I/O)
         self.icon_running = os.path.join(self.resources_dir, "menubar-icon-running.png")
         self.icon_stopped = os.path.join(self.resources_dir, "menubar-icon-stopped.png")
         self.icon_starting = os.path.join(self.resources_dir, "menubar-icon-starting.png")
 
-        # Debug logging
-        with open(self.log_file, 'a') as f:
-            f.write(f"DEBUG: frozen={getattr(sys, 'frozen', False)}\n")
-            f.write(f"DEBUG: resources_dir={self.resources_dir}\n")
-            f.write(f"DEBUG: bin_dir={self.bin_dir}\n")
-            f.write(f"DEBUG: launcher_script={self.launcher_script}\n")
-            f.write(f"DEBUG: icon_stopped exists={os.path.exists(self.icon_stopped)}\n")
-            f.write(f"DEBUG: icon_stopped path={self.icon_stopped}\n")
-            f.write(f"DEBUG: About to initialize rumps with icon\n")
+        # Initialize with icon IMMEDIATELY (this makes icon appear)
+        super(OnionPressApp, self).__init__("", icon=self.icon_stopped, quit_button=None)
 
-        # Initialize with icon instead of text (empty string, not None)
-        try:
-            super(OnionPressApp, self).__init__("", icon=self.icon_stopped, quit_button=None)
-            with open(self.log_file, 'a') as f:
-                f.write(f"DEBUG: rumps initialized successfully\n")
-        except Exception as e:
-            with open(self.log_file, 'a') as f:
-                f.write(f"ERROR: rumps init failed: {e}\n")
-            raise
-
-        # Get version from Info.plist
+        # Get version from Info.plist (fast)
         self.version = self.get_version()
 
-        # Create Docker config without credential store (avoids docker-credential-osxkeychain errors)
+        # Set up environment variables (fast - no I/O)
         docker_config_dir = os.path.join(self.app_support, "docker-config")
-        os.makedirs(docker_config_dir, exist_ok=True)
-        docker_config_file = os.path.join(docker_config_dir, "config.json")
-        if not os.path.exists(docker_config_file):
-            with open(docker_config_file, 'w') as f:
-                f.write('{\n\t"auths": {},\n\t"currentContext": "colima"\n}\n')
-
-        # Install docker-compose plugin: prefer bundled, fall back to system
-        cli_plugins_dir = os.path.join(docker_config_dir, "cli-plugins")
-        os.makedirs(cli_plugins_dir, exist_ok=True)
-        compose_plugin_dest = os.path.join(cli_plugins_dir, "docker-compose")
-        bundled_compose = os.path.join(self.bin_dir, "docker-compose")
-        system_compose = os.path.expanduser("~/.docker/cli-plugins/docker-compose")
-        if os.path.isfile(bundled_compose) and not os.path.exists(compose_plugin_dest):
-            try:
-                os.symlink(bundled_compose, compose_plugin_dest)
-            except:
-                pass
-        elif os.path.islink(system_compose) and not os.path.exists(compose_plugin_dest):
-            try:
-                os.symlink(system_compose, compose_plugin_dest)
-            except:
-                pass
-
-        # Set up bundled binaries environment
         os.environ["PATH"] = f"{self.bin_dir}:{os.environ.get('PATH', '')}"
         os.environ["COLIMA_HOME"] = self.colima_home
         os.environ["LIMA_HOME"] = os.path.join(self.colima_home, "_lima")
@@ -136,8 +85,57 @@ class OnionPressApp(rumps.App):
         os.environ["DOCKER_HOST"] = f"unix://{self.colima_home}/default/docker.sock"
         os.environ["DOCKER_CONFIG"] = docker_config_dir
 
-        # Log version information at startup
-        self.log_version_info()
+        # Do slow I/O operations in background after icon appears
+        def background_init():
+            # Rotate log file on startup to avoid confusion with old sessions
+            if os.path.exists(self.log_file):
+                # Keep only the last session as backup
+                backup_log = os.path.join(self.app_support, "onion.press.log.prev")
+                try:
+                    import shutil
+                    shutil.move(self.log_file, backup_log)
+                except OSError:
+                    pass  # If rotation fails, just append
+
+            # Debug logging
+            with open(self.log_file, 'a') as f:
+                f.write(f"DEBUG: frozen={getattr(sys, 'frozen', False)}\n")
+                f.write(f"DEBUG: resources_dir={self.resources_dir}\n")
+                f.write(f"DEBUG: bin_dir={self.bin_dir}\n")
+                f.write(f"DEBUG: launcher_script={self.launcher_script}\n")
+                f.write(f"DEBUG: icon_stopped exists={os.path.exists(self.icon_stopped)}\n")
+                f.write(f"DEBUG: icon_stopped path={self.icon_stopped}\n")
+                f.write(f"DEBUG: rumps initialized successfully\n")
+
+            # Create Docker config without credential store (avoids docker-credential-osxkeychain errors)
+            os.makedirs(docker_config_dir, exist_ok=True)
+            docker_config_file = os.path.join(docker_config_dir, "config.json")
+            if not os.path.exists(docker_config_file):
+                with open(docker_config_file, 'w') as f:
+                    f.write('{\n\t"auths": {},\n\t"currentContext": "colima"\n}\n')
+
+            # Install docker-compose plugin: prefer bundled, fall back to system
+            cli_plugins_dir = os.path.join(docker_config_dir, "cli-plugins")
+            os.makedirs(cli_plugins_dir, exist_ok=True)
+            compose_plugin_dest = os.path.join(cli_plugins_dir, "docker-compose")
+            bundled_compose = os.path.join(self.bin_dir, "docker-compose")
+            system_compose = os.path.expanduser("~/.docker/cli-plugins/docker-compose")
+            if os.path.isfile(bundled_compose) and not os.path.exists(compose_plugin_dest):
+                try:
+                    os.symlink(bundled_compose, compose_plugin_dest)
+                except:
+                    pass
+            elif os.path.islink(system_compose) and not os.path.exists(compose_plugin_dest):
+                try:
+                    os.symlink(system_compose, compose_plugin_dest)
+                except:
+                    pass
+
+            # Log version information at startup
+            self.log_version_info()
+
+        # Start background initialization
+        threading.Thread(target=background_init, daemon=True).start()
 
         # State
         self.onion_address = "Starting..."
