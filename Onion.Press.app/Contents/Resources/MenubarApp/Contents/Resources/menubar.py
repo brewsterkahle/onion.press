@@ -1236,7 +1236,6 @@ class OnionPressApp(rumps.App):
         except:
             return 'Unknown'
 
-    @rumps.clicked("Settings...")
     def read_config_value(self, key, default=""):
         """Read a value from the config file"""
         config_file = os.path.join(self.app_support, "config")
@@ -1283,6 +1282,7 @@ class OnionPressApp(rumps.App):
         with open(config_file, 'w') as f:
             f.writelines(lines)
 
+    @rumps.clicked("Settings...")
     def open_settings(self, _):
         """Show settings dialog with Apply/Cancel buttons"""
         # Read current settings
