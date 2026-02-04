@@ -1,0 +1,333 @@
+/*
+ * Onion.Press Product Website - Retro 90s/2000s Styling
+ * Add this to WordPress via Appearance > Customize > Additional CSS
+ */
+
+/* Import retro pixel font */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+/* Root variables for easy color changes */
+:root {
+    --retro-magenta: #FF00FF;
+    --retro-cyan: #00FFFF;
+    --retro-yellow: #FFFF00;
+    --retro-blue: #0000FF;
+    --retro-purple: #800080;
+    --retro-black: #000000;
+    --retro-white: #FFFFFF;
+}
+
+/* Body styling */
+body {
+    background-color: var(--retro-white);
+    color: var(--retro-black);
+    font-family: 'Courier New', 'Courier', monospace;
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+/* Optional: Tiled background (uncomment to use) */
+/*
+body {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9InN0YXJzIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiPjxjaXJjbGUgY3g9IjIiIGN5PSIyIiByPSIxIiBmaWxsPSIjRkZGRkZGIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI3N0YXJzKSIvPjwvc3ZnPg==');
+    background-color: #000033;
+}
+*/
+
+/* Headings with pixel font */
+h1, h2, h3 {
+    font-family: 'Press Start 2P', cursive;
+    text-transform: uppercase;
+    line-height: 1.4;
+    margin-top: 2em;
+    margin-bottom: 1em;
+}
+
+h1 {
+    font-size: 24px;
+    color: var(--retro-magenta);
+    text-shadow: 3px 3px 0px var(--retro-cyan);
+    border: 3px solid var(--retro-black);
+    padding: 20px;
+    background: var(--retro-white);
+    text-align: center;
+}
+
+h2 {
+    font-size: 18px;
+    color: var(--retro-cyan);
+    border-left: 5px solid var(--retro-magenta);
+    padding-left: 15px;
+}
+
+h3 {
+    font-size: 14px;
+    color: var(--retro-black);
+}
+
+/* Classic hyperlink colors */
+a {
+    color: var(--retro-blue);
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+a:visited {
+    color: var(--retro-purple);
+}
+
+a:hover {
+    color: var(--retro-magenta);
+    background-color: var(--retro-yellow);
+    text-decoration: none;
+}
+
+/* Bold borders on containers */
+.wp-block-group,
+.wp-block-column,
+article,
+.entry-content {
+    border: 3px solid var(--retro-black);
+    padding: 20px;
+    margin: 20px 0;
+    background: var(--retro-white);
+}
+
+/* Retro buttons */
+.wp-block-button__link,
+.wp-element-button,
+button,
+input[type="submit"] {
+    font-family: 'Press Start 2P', cursive !important;
+    font-size: 12px !important;
+    background: var(--retro-magenta) !important;
+    color: var(--retro-white) !important;
+    border: 3px solid var(--retro-black) !important;
+    padding: 15px 30px !important;
+    text-transform: uppercase !important;
+    cursor: pointer !important;
+    box-shadow: 5px 5px 0px var(--retro-black) !important;
+    text-decoration: none !important;
+}
+
+.wp-block-button__link:hover,
+.wp-element-button:hover,
+button:hover {
+    background: var(--retro-cyan) !important;
+    color: var(--retro-black) !important;
+    box-shadow: 3px 3px 0px var(--retro-black) !important;
+    transform: translate(2px, 2px);
+}
+
+/* Tables with borders */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 3px solid var(--retro-black);
+}
+
+th, td {
+    border: 2px solid var(--retro-black);
+    padding: 10px;
+    text-align: left;
+}
+
+th {
+    background: var(--retro-magenta);
+    color: var(--retro-white);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 12px;
+}
+
+tr:nth-child(even) {
+    background: #F0F0F0;
+}
+
+/* Retro list markers */
+ul {
+    list-style: none;
+}
+
+ul li:before {
+    content: "★ ";
+    color: var(--retro-yellow);
+    font-size: 1.2em;
+    margin-right: 10px;
+}
+
+/* Blockquotes */
+blockquote {
+    border-left: 5px solid var(--retro-magenta);
+    background: #FFFFE0;
+    padding: 15px;
+    margin: 20px 0;
+    font-style: italic;
+    border-top: 2px solid var(--retro-black);
+    border-bottom: 2px solid var(--retro-black);
+}
+
+/* Code blocks */
+code, pre {
+    font-family: 'VT323', monospace;
+    background: var(--retro-black);
+    color: var(--retro-cyan);
+    padding: 2px 6px;
+    border: 2px solid var(--retro-magenta);
+}
+
+pre {
+    padding: 15px;
+    overflow-x: auto;
+}
+
+/* Images with borders */
+img {
+    border: 3px solid var(--retro-black);
+    max-width: 100%;
+    height: auto;
+}
+
+/* Header styling */
+.site-header {
+    background: var(--retro-black);
+    color: var(--retro-cyan);
+    border-bottom: 5px solid var(--retro-magenta);
+    padding: 20px;
+}
+
+.site-title {
+    font-family: 'Press Start 2P', cursive !important;
+    font-size: 32px !important;
+    color: var(--retro-cyan) !important;
+    text-shadow: 3px 3px 0px var(--retro-magenta) !important;
+}
+
+/* Navigation */
+nav a {
+    color: var(--retro-cyan) !important;
+    text-decoration: none;
+    padding: 10px 15px;
+    display: inline-block;
+    border: 2px solid transparent;
+}
+
+nav a:hover {
+    background: var(--retro-magenta) !important;
+    color: var(--retro-white) !important;
+    border: 2px solid var(--retro-white);
+}
+
+/* Footer */
+.site-footer {
+    background: var(--retro-black);
+    color: var(--retro-cyan);
+    border-top: 5px solid var(--retro-magenta);
+    padding: 30px;
+    text-align: center;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+}
+
+.site-footer a {
+    color: var(--retro-yellow);
+}
+
+/* Visitor counter style */
+.visitor-counter {
+    font-family: 'VT323', monospace;
+    background: var(--retro-black);
+    color: var(--retro-cyan);
+    padding: 10px 20px;
+    border: 3px solid var(--retro-magenta);
+    display: inline-block;
+    font-size: 24px;
+    letter-spacing: 5px;
+}
+
+/* Badge styling */
+.retro-badge {
+    display: inline-block;
+    border: 3px solid var(--retro-black);
+    padding: 10px;
+    background: var(--retro-yellow);
+    font-family: 'Press Start 2P', cursive;
+    font-size: 10px;
+    margin: 10px;
+    box-shadow: 3px 3px 0px var(--retro-black);
+}
+
+/* Feature boxes (3-column grid) */
+.feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 30px 0;
+}
+
+.feature-box {
+    border: 3px solid var(--retro-black);
+    padding: 20px;
+    background: var(--retro-white);
+    text-align: center;
+}
+
+.feature-box h3 {
+    color: var(--retro-magenta);
+    border: none;
+    padding: 0;
+}
+
+/* Hero section */
+.hero {
+    background: linear-gradient(135deg, var(--retro-magenta) 0%, var(--retro-cyan) 100%);
+    color: var(--retro-white);
+    border: 5px solid var(--retro-black);
+    padding: 40px;
+    text-align: center;
+    margin: 30px 0;
+}
+
+.hero h1 {
+    color: var(--retro-white);
+    text-shadow: 3px 3px 0px var(--retro-black);
+    border: none;
+    background: transparent;
+}
+
+/* Animated blink effect (use sparingly!) */
+@keyframes blink {
+    0%, 50%, 100% { opacity: 1; }
+    25%, 75% { opacity: 0; }
+}
+
+.blink {
+    animation: blink 2s infinite;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 18px;
+    }
+
+    h2 {
+        font-size: 14px;
+    }
+
+    .site-title {
+        font-size: 20px !important;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Accessibility: Ensure text is readable */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
