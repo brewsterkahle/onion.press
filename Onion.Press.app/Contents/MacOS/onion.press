@@ -296,6 +296,46 @@ install_docker() {
     fi
 }
 
+# Function to update Docker images if enabled
+update_images() {
+    # Check if auto-update is enabled in config
+    local update_enabled="no"
+    if [ -f "$DATA_DIR/config" ]; then
+        local config_value=$(grep "^UPDATE_ON_LAUNCH=" "$DATA_DIR/config" | cut -d= -f2)
+        if [ ! -z "$config_value" ]; then
+            update_enabled="$config_value"
+        fi
+    fi
+
+    if [ "$update_enabled" != "yes" ]; then
+        return 0
+    fi
+
+    log "Checking for Docker image updates..."
+
+    cd "$DOCKER_DIR"
+
+    # Pull latest images (WordPress, MariaDB, Tor)
+    local images=("wordpress:6.7" "mariadb:11.6" "goldy/tor-hidden-service:v0.4.7.12-54c0e54")
+    local updated=false
+
+    for image in "${images[@]}"; do
+        log "Pulling $image..."
+        if docker pull "$image" >> "$LOG_FILE" 2>&1; then
+            log "✓ $image up to date"
+            updated=true
+        else
+            log "WARNING: Failed to pull $image (continuing with cached version)"
+        fi
+    done
+
+    if [ "$updated" = true ]; then
+        log "✓ Image update check complete"
+    fi
+
+    return 0
+}
+
 # Function to start containers
 start_containers() {
     log "Starting onion.press containers..."
@@ -339,6 +379,9 @@ start_containers() {
             log "Using random onion address"
         fi
     fi
+
+    # Update images if enabled in config
+    update_images
 
     # Start containers with retry on transient failures (e.g. network hiccups during image pull)
     local max_attempts=3
