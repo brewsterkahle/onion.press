@@ -73,8 +73,8 @@ class OnionPressApp(rumps.App):
         # Initialize with icon IMMEDIATELY (this makes icon appear)
         super(OnionPressApp, self).__init__("", icon=self.icon_stopped, quit_button=None)
 
-        # Get version from Info.plist (fast)
-        self.version = self.get_version()
+        # Set version to placeholder (will be updated in background)
+        self.version = "2.2.31"
 
         # Set up environment variables (fast - no I/O)
         docker_config_dir = os.path.join(self.app_support, "docker-config")
@@ -131,8 +131,14 @@ class OnionPressApp(rumps.App):
                 except:
                     pass
 
+            # Get actual version from Info.plist
+            self.version = self.get_version()
+
             # Log version information at startup
             self.log_version_info()
+
+            # Update browser menu title after checking filesystem
+            self.update_browser_menu_title()
 
         # Start background initialization
         threading.Thread(target=background_init, daemon=True).start()
@@ -176,9 +182,6 @@ class OnionPressApp(rumps.App):
             rumps.separator,
             rumps.MenuItem("Quit", callback=self.quit_app),
         ]
-
-        # Update browser menu item title based on what's available
-        self.update_browser_menu_title()
 
         # Ensure Docker is available
         threading.Thread(target=self.ensure_docker_available, daemon=True).start()
