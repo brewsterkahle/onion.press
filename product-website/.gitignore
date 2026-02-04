@@ -1,0 +1,31 @@
+# Temporary files
+*.bak
+*.tmp
+export-info.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Don't ignore the main content - we want everything in git!
+# These directories should be tracked:
+# - content/themes/
+# - content/plugins/
+# - content/uploads/
+# - database/
+
+# But exclude certain WordPress defaults we don't need
+content/plugins/akismet/
+content/plugins/hello.php
+content/themes/twenty*/
+
+# Exclude cache files if they sneak in
+content/uploads/cache/
+content/cache/
