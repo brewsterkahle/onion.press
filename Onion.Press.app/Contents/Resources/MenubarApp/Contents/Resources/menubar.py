@@ -689,7 +689,7 @@ class OnionPressApp(rumps.App):
 
             # Check 2: Verify Tor has bootstrapped to 100%
             result = subprocess.run(
-                [docker_bin, "logs", "--tail", "50", "onionpress-tor"],
+                [docker_bin, "logs", "--tail", "100", "onionpress-tor"],
                 capture_output=True,
                 text=True,
                 encoding='utf-8',
@@ -703,7 +703,14 @@ class OnionPressApp(rumps.App):
                     self.log(f"✗ Tor not fully bootstrapped yet")
                 return False
 
-            # Check 3: Verify no critical errors in recent logs
+            # Check 3: Verify hidden service descriptor has been uploaded
+            # This is critical - Tor can be bootstrapped but the HS descriptor might not be published yet
+            if "Uploaded rendezvous descriptor" not in result.stdout and "Uploading descriptor" not in result.stdout:
+                if log_result:
+                    self.log(f"✗ Hidden service descriptor not uploaded yet")
+                return False
+
+            # Check 4: Verify no critical errors in recent logs
             if "ERROR" in result.stdout or "failed to publish" in result.stdout.lower():
                 if log_result:
                     self.log(f"✗ Tor errors detected in logs")
@@ -762,14 +769,14 @@ class OnionPressApp(rumps.App):
                 previous_ready = self.is_ready
                 ready_now = wordpress_ready and tor_reachable
 
-                # If just became ready, wait 10 seconds before showing as ready
+                # If just became ready, wait 20 seconds before showing as ready
                 # This gives the Tor network time to fully propagate the onion service
                 if ready_now and not previous_ready:
-                    self.log("✓ System checks passed - waiting 10 seconds for Tor network propagation...")
+                    self.log("✓ System checks passed - waiting 20 seconds for Tor network propagation...")
                     self.last_status_logged = current_status
 
                     def delayed_ready():
-                        time.sleep(10)
+                        time.sleep(20)
                         self.is_ready = True
                         self.log("✓ System fully operational - reducing check frequency")
 
