@@ -465,76 +465,63 @@ class OnionPressApp(rumps.App):
         self.start_service(None)
 
     def is_login_item(self):
-        """Check if app is currently in login items (no permissions needed)"""
+        """Check if app is currently in login items"""
         try:
-            # Use native LaunchServices API - no osascript, no permissions
-            from LaunchServices import LSSharedFileListCreate, LSSharedFileListCopySnapshot, \
-                kLSSharedFileListSessionLoginItems, LSSharedFileListItemCopyResolvedURL
+            # Use sfltool to check login items (no permissions required)
+            result = subprocess.run(
+                ["sfltool", "dumpbtm"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                timeout=5
+            )
 
-            login_items_ref = LSSharedFileListCreate(None, kLSSharedFileListSessionLoginItems, None)
-            if login_items_ref:
-                snapshot = LSSharedFileListCopySnapshot(login_items_ref, None)
-                if snapshot:
-                    for item in snapshot[0]:
-                        item_url = LSSharedFileListItemCopyResolvedURL(item, 0, None)
-                        if item_url and item_url[0]:
-                            path = item_url[0].path()
-                            if 'Onion.Press' in path or 'onion.press' in path:
-                                return True
+            if result.returncode == 0:
+                output = result.stdout.lower()
+                return 'onion.press' in output or 'onion-press' in output
             return False
         except Exception as e:
             self.log(f"Error checking login items: {e}")
             return False
 
     def add_login_item(self):
-        """Add app to login items (no permissions needed)"""
+        """Add app to login items - prompts user to add manually"""
         try:
-            # Use native LaunchServices API - no osascript, no permissions
-            from LaunchServices import LSSharedFileListCreate, LSSharedFileListInsertItemURL, \
-                kLSSharedFileListSessionLoginItems, kLSSharedFileListItemBeforeFirst
-            from CoreFoundation import CFURLCreateWithFileSystemPath, kCFURLPOSIXPathStyle
+            # Open System Settings to Login Items
+            # Modern macOS doesn't allow programmatic login item addition without prompts
+            rumps.alert(
+                title="Enable Launch on Login",
+                message="Please add Onion.Press to Login Items:\n\n1. System Settings will open\n2. Go to General → Login Items\n3. Click the + button\n4. Select Onion.Press.app from Applications\n\nNote: You can also disable this setting in the config file.",
+                ok="Open System Settings"
+            )
 
-            app_path = os.path.dirname(os.path.dirname(os.path.dirname(self.script_dir)))
+            # Open System Settings to Login Items
+            subprocess.run(["open", "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"])
 
-            login_items_ref = LSSharedFileListCreate(None, kLSSharedFileListSessionLoginItems, None)
-            if login_items_ref:
-                url = CFURLCreateWithFileSystemPath(None, app_path, kCFURLPOSIXPathStyle, True)
-                if url:
-                    LSSharedFileListInsertItemURL(
-                        login_items_ref,
-                        kLSSharedFileListItemBeforeFirst,
-                        None, None, url, None, None
-                    )
-                    self.log("Added to login items")
-                    return True
-            return False
+            self.log("User prompted to add login item manually")
+            return True
         except Exception as e:
-            self.log(f"Error adding login item: {e}")
+            self.log(f"Error prompting login item addition: {e}")
             return False
 
     def remove_login_item(self):
-        """Remove app from login items (no permissions needed)"""
+        """Remove app from login items - prompts user to remove manually"""
         try:
-            # Use native LaunchServices API - no osascript, no permissions
-            from LaunchServices import LSSharedFileListCreate, LSSharedFileListCopySnapshot, \
-                kLSSharedFileListSessionLoginItems, LSSharedFileListItemCopyResolvedURL, \
-                LSSharedFileListItemRemove
+            # Open System Settings to Login Items
+            rumps.alert(
+                title="Disable Launch on Login",
+                message="Please remove Onion.Press from Login Items:\n\n1. System Settings will open\n2. Go to General → Login Items\n3. Select Onion.Press\n4. Click the - button to remove it",
+                ok="Open System Settings"
+            )
 
-            login_items_ref = LSSharedFileListCreate(None, kLSSharedFileListSessionLoginItems, None)
-            if login_items_ref:
-                snapshot = LSSharedFileListCopySnapshot(login_items_ref, None)
-                if snapshot:
-                    for item in snapshot[0]:
-                        item_url = LSSharedFileListItemCopyResolvedURL(item, 0, None)
-                        if item_url and item_url[0]:
-                            path = item_url[0].path()
-                            if 'Onion.Press' in path or 'onion.press' in path:
-                                LSSharedFileListItemRemove(login_items_ref, item)
-                                self.log("Removed from login items")
-                                return True
-            return False
+            # Open System Settings to Login Items
+            subprocess.run(["open", "x-apple.systempreferences:com.apple.LoginItems-Settings.extension"])
+
+            self.log("User prompted to remove login item manually")
+            return True
         except Exception as e:
-            self.log(f"Error removing login item: {e}")
+            self.log(f"Error prompting login item removal: {e}")
             return False
 
     def sync_launch_on_login(self):
