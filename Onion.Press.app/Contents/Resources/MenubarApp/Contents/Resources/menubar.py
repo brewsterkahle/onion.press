@@ -825,8 +825,6 @@ class OnionPressApp(rumps.App):
                 self.menu["Start"].set_callback(None)
                 self.menu["Stop"].set_callback(self.stop_service)
                 self.menu["Restart"].set_callback(self.restart_service)
-                # Dismiss launch splash when startup begins
-                self.dismiss_launch_splash()
             else:
                 # Stopped
                 self.icon = self.icon_stopped
@@ -1060,6 +1058,8 @@ class OnionPressApp(rumps.App):
                 # Prefer Tor Browser if available
                 self.log(f"Auto-opening Tor Browser: {url}")
                 subprocess.run(["open", "-a", "Tor Browser", url])
+                # Dismiss launch splash now that browser is opening
+                self.dismiss_launch_splash()
             elif os.path.exists(brave_browser_path):
                 # Fallback to Brave Browser with Tor support
                 self.log(f"Auto-opening Brave Browser (Tor mode): {url}")
@@ -1071,10 +1071,13 @@ class OnionPressApp(rumps.App):
                     subtitle="Opening in Brave Browser",
                     message="Opening in Private Window with Tor"
                 )
+                # Dismiss launch splash now that browser is opening
+                self.dismiss_launch_splash()
             else:
                 self.log("Neither Tor Browser nor Brave Browser installed - showing download dialog")
-                # Dismiss setup dialog before showing browser download dialog
+                # Dismiss setup dialog and launch splash before showing browser download dialog
                 self.dismiss_setup_dialog()
+                self.dismiss_launch_splash()
                 address = self.onion_address
                 try:
                     button_index = self.show_native_alert(
