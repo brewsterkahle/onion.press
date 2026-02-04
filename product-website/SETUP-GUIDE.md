@@ -78,7 +78,7 @@ Create these pages in WordPress (Pages → Add New):
 
   <div class="feature-box">
     <h3>💾 All Yours</h3>
-    <p>Run WordPress on your Mac. You control everything.</p>
+    <p>Run WordPress on your Mac. Visible even on home or institutional networks. You control everything.</p>
   </div>
 
   <div class="feature-box">
