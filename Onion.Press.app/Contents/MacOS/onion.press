@@ -245,6 +245,22 @@ install_ia_plugin() {
     return 0
 }
 
+# Function to fix permissions for onionpress persistent data directory
+fix_onionpress_permissions() {
+    log "Fixing permissions for onionpress persistent data directory..."
+
+    cd "$DOCKER_DIR"
+
+    # Ensure the directory exists and is owned by www-data
+    if docker compose exec -T wordpress sh -c 'chown -R www-data:www-data /var/lib/onionpress && chmod 755 /var/lib/onionpress' 2>>"$LOG_FILE"; then
+        log "✓ Onionpress data directory permissions fixed"
+        return 0
+    else
+        log "WARNING: Could not fix onionpress data directory permissions"
+        return 1
+    fi
+}
+
 # Function to initialize container runtime
 install_docker() {
     log "Container runtime initialization required"
@@ -336,6 +352,9 @@ start_containers() {
 
     # Install Internet Archive Wayback Machine Link Fixer plugin
     install_ia_plugin
+
+    # Fix permissions for onionpress persistent data directory
+    fix_onionpress_permissions
 }
 
 # Function to stop containers
