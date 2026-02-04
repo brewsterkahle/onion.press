@@ -65,17 +65,20 @@ class OnionPressApp(rumps.App):
         self.info_plist = os.path.join(self.contents_dir, "Info.plist")
         self.log_file = os.path.join(self.app_support, "onion.press.log")
 
-        # Icon paths (fast - no I/O)
+        # Initialize rumps WITHOUT icon first (fastest possible)
+        super(OnionPressApp, self).__init__("", quit_button=None)
+
+        # Show launch splash IMMEDIATELY before any I/O
+        self.launch_splash = None
+        self.show_launch_splash()
+
+        # Now load icon files (this does I/O but splash is already showing)
         self.icon_running = os.path.join(self.resources_dir, "menubar-icon-running.png")
         self.icon_stopped = os.path.join(self.resources_dir, "menubar-icon-stopped.png")
         self.icon_starting = os.path.join(self.resources_dir, "menubar-icon-starting.png")
 
-        # Initialize with icon IMMEDIATELY (this makes icon appear)
-        super(OnionPressApp, self).__init__("", icon=self.icon_stopped, quit_button=None)
-
-        # Show launch splash immediately
-        self.launch_splash = None
-        self.show_launch_splash()
+        # Set the stopped icon
+        self.icon = self.icon_stopped
 
         # Set version to placeholder (will be updated in background)
         self.version = "2.2.31"
@@ -197,10 +200,10 @@ class OnionPressApp(rumps.App):
         threading.Thread(target=self.auto_start, daemon=True).start()
 
     def show_launch_splash(self):
-        """Show non-blocking launch splash with logo"""
+        """Show non-blocking launch splash with logo - no I/O blocking"""
         def show():
             try:
-                # Create window
+                # Create window (no I/O)
                 window = AppKit.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
                     AppKit.NSMakeRect(0, 0, 300, 200),
                     AppKit.NSWindowStyleMaskTitled,
@@ -214,29 +217,20 @@ class OnionPressApp(rumps.App):
                 # Create content view
                 content_view = AppKit.NSView.alloc().initWithFrame_(AppKit.NSMakeRect(0, 0, 300, 200))
 
-                # Add logo image
-                icon_path = os.path.join(self.resources_dir, "app-icon.png")
-                if os.path.exists(icon_path):
-                    image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(100, 100, 100, 100))
-                    image = AppKit.NSImage.alloc().initWithContentsOfFile_(icon_path)
-                    if image:
-                        image_view.setImage_(image)
-                        content_view.addSubview_(image_view)
-
-                # Add "Launching..." text
-                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(50, 70, 200, 30))
+                # Add "Launching..." text (no I/O)
+                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(50, 100, 200, 30))
                 text_field.setStringValue_("Launching Onion.Press...")
                 text_field.setBezeled_(False)
                 text_field.setDrawsBackground_(False)
                 text_field.setEditable_(False)
                 text_field.setSelectable_(False)
                 text_field.setAlignment_(AppKit.NSTextAlignmentCenter)
-                font = AppKit.NSFont.systemFontOfSize_(14)
+                font = AppKit.NSFont.systemFontOfSize_(16)
                 text_field.setFont_(font)
                 content_view.addSubview_(text_field)
 
-                # Add "View Log" button
-                view_log_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(90, 20, 120, 32))
+                # Add "View Log" button (no I/O)
+                view_log_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(90, 50, 120, 32))
                 view_log_button.setTitle_("View Log")
                 view_log_button.setBezelStyle_(AppKit.NSBezelStyleRounded)
                 view_log_button.setTarget_(self)
@@ -247,8 +241,20 @@ class OnionPressApp(rumps.App):
                 window.makeKeyAndOrderFront_(None)
 
                 self.launch_splash = window
+
+                # Add logo in background (I/O happens after window shows)
+                def add_logo():
+                    icon_path = os.path.join(self.resources_dir, "app-icon.png")
+                    if os.path.exists(icon_path):
+                        image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(100, 130, 100, 100))
+                        image = AppKit.NSImage.alloc().initWithContentsOfFile_(icon_path)
+                        if image:
+                            image_view.setImage_(image)
+                            content_view.addSubview_(image_view)
+                threading.Thread(target=add_logo, daemon=True).start()
+
             except Exception as e:
-                self.log(f"Error showing launch splash: {e}")
+                pass  # Don't log yet, log file not ready
 
         # Show on main thread
         AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(show)
