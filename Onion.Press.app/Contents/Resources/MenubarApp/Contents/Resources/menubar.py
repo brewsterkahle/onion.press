@@ -73,6 +73,10 @@ class OnionPressApp(rumps.App):
         # Initialize with icon IMMEDIATELY (this makes icon appear)
         super(OnionPressApp, self).__init__("", icon=self.icon_stopped, quit_button=None)
 
+        # Show launch splash immediately
+        self.launch_splash = None
+        self.show_launch_splash()
+
         # Set version to placeholder (will be updated in background)
         self.version = "2.2.31"
 
@@ -191,6 +195,76 @@ class OnionPressApp(rumps.App):
 
         # Auto-start on launch
         threading.Thread(target=self.auto_start, daemon=True).start()
+
+    def show_launch_splash(self):
+        """Show non-blocking launch splash with logo"""
+        def show():
+            try:
+                # Create window
+                window = AppKit.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
+                    AppKit.NSMakeRect(0, 0, 300, 200),
+                    AppKit.NSWindowStyleMaskTitled,
+                    AppKit.NSBackingStoreBuffered,
+                    False
+                )
+                window.setTitle_("Onion.Press")
+                window.setLevel_(AppKit.NSFloatingWindowLevel)
+                window.center()
+
+                # Create content view
+                content_view = AppKit.NSView.alloc().initWithFrame_(AppKit.NSMakeRect(0, 0, 300, 200))
+
+                # Add logo image
+                icon_path = os.path.join(self.resources_dir, "app-icon.png")
+                if os.path.exists(icon_path):
+                    image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(100, 100, 100, 100))
+                    image = AppKit.NSImage.alloc().initWithContentsOfFile_(icon_path)
+                    if image:
+                        image_view.setImage_(image)
+                        content_view.addSubview_(image_view)
+
+                # Add "Launching..." text
+                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(50, 70, 200, 30))
+                text_field.setStringValue_("Launching Onion.Press...")
+                text_field.setBezeled_(False)
+                text_field.setDrawsBackground_(False)
+                text_field.setEditable_(False)
+                text_field.setSelectable_(False)
+                text_field.setAlignment_(AppKit.NSTextAlignmentCenter)
+                font = AppKit.NSFont.systemFontOfSize_(14)
+                text_field.setFont_(font)
+                content_view.addSubview_(text_field)
+
+                # Add "View Log" button
+                view_log_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(90, 20, 120, 32))
+                view_log_button.setTitle_("View Log")
+                view_log_button.setBezelStyle_(AppKit.NSBezelStyleRounded)
+                view_log_button.setTarget_(self)
+                view_log_button.setAction_("view_logs:")
+                content_view.addSubview_(view_log_button)
+
+                window.setContentView_(content_view)
+                window.makeKeyAndOrderFront_(None)
+
+                self.launch_splash = window
+            except Exception as e:
+                self.log(f"Error showing launch splash: {e}")
+
+        # Show on main thread
+        AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(show)
+
+    def dismiss_launch_splash(self):
+        """Dismiss the launch splash window"""
+        def dismiss():
+            if self.launch_splash:
+                try:
+                    self.launch_splash.close()
+                    self.launch_splash = None
+                except:
+                    pass
+
+        # Dismiss on main thread
+        AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(dismiss)
 
     def log(self, message):
         """Write log message to onion.press.log file"""
@@ -745,6 +819,8 @@ class OnionPressApp(rumps.App):
                 self.menu["Start"].set_callback(None)
                 self.menu["Stop"].set_callback(self.stop_service)
                 self.menu["Restart"].set_callback(self.restart_service)
+                # Dismiss launch splash when startup begins
+                self.dismiss_launch_splash()
             else:
                 # Stopped
                 self.icon = self.icon_stopped
