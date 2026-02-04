@@ -1271,117 +1271,26 @@ class OnionPressApp(rumps.App):
 
     @rumps.clicked("Settings...")
     def open_settings(self, _):
-        """Open web-based settings interface"""
-        # Start settings web server in background thread
-        threading.Thread(target=self.run_settings_server, daemon=True).start()
+        """Open config file in default text editor"""
+        config_file = os.path.join(self.app_support, "config")
 
-        # Wait a moment for server to start
-        time.sleep(0.5)
+        # Create default config if it doesn't exist
+        if not os.path.exists(config_file):
+            config_template = os.path.join(self.parent_resources_dir, "config-template.txt")
+            if os.path.exists(config_template):
+                subprocess.run(["cp", config_template, config_file])
 
-        # Open settings page in browser
-        subprocess.run(["open", "http://localhost:9876/"])
-
-    def run_settings_server(self):
-        """Run a simple HTTP server for settings UI"""
-        from http.server import HTTPServer, BaseHTTPRequestHandler
-        import json
-
-        app = self
-
-        class SettingsHandler(BaseHTTPRequestHandler):
-            def log_message(self, format, *args):
-                # Log to onion.press.log instead of stderr
-                app.log(f"Settings server: {format % args}")
-
-            def do_GET(self):
-                try:
-                    if self.path == '/' or self.path == '/index.html':
-                        # Serve settings HTML
-                        self.send_response(200)
-                        self.send_header('Content-type', 'text/html')
-                        self.send_header('Cache-Control', 'no-cache')
-                        self.end_headers()
-
-                        # Read HTML template
-                        html_path = os.path.join(app.parent_resources_dir, 'settings.html')
-                        app.log(f"Reading settings HTML from: {html_path}")
-                        with open(html_path, 'r', encoding='utf-8') as f:
-                            self.wfile.write(f.read().encode('utf-8'))
-
-                    elif self.path == '/settings':
-                        # Return current settings as JSON
-                        settings = {
-                            'VANITY_PREFIX': app.read_config_value('VANITY_PREFIX', 'op2'),
-                            'INSTALL_IA_PLUGIN': app.read_config_value('INSTALL_IA_PLUGIN', 'yes'),
-                            'UPDATE_ON_LAUNCH': app.read_config_value('UPDATE_ON_LAUNCH', 'no'),
-                            'LAUNCH_ON_LOGIN': app.read_config_value('LAUNCH_ON_LOGIN', 'no')
-                        }
-
-                        self.send_response(200)
-                        self.send_header('Content-type', 'application/json')
-                        self.send_header('Cache-Control', 'no-cache')
-                        self.end_headers()
-                        self.wfile.write(json.dumps(settings).encode('utf-8'))
-
-                    else:
-                        self.send_response(404)
-                        self.end_headers()
-                except Exception as e:
-                    app.log(f"Error in GET handler: {e}")
-                    self.send_response(500)
-                    self.end_headers()
-
-            def do_POST(self):
-                try:
-                    if self.path == '/settings':
-                        # Save new settings
-                        content_length = int(self.headers['Content-Length'])
-                        post_data = self.rfile.read(content_length)
-                        settings = json.loads(post_data.decode('utf-8'))
-
-                        # Get old values for comparison
-                        old_launch_on_login = app.read_config_value('LAUNCH_ON_LOGIN', 'no')
-
-                        # Write new values
-                        app.write_config_value('VANITY_PREFIX', settings['VANITY_PREFIX'])
-                        app.write_config_value('INSTALL_IA_PLUGIN', settings['INSTALL_IA_PLUGIN'])
-                        app.write_config_value('UPDATE_ON_LAUNCH', settings['UPDATE_ON_LAUNCH'])
-                        app.write_config_value('LAUNCH_ON_LOGIN', settings['LAUNCH_ON_LOGIN'])
-
-                        # Handle launch on login change
-                        if settings['LAUNCH_ON_LOGIN'] != old_launch_on_login:
-                            threading.Thread(target=app.sync_launch_on_login, daemon=True).start()
-
-                        app.log("Settings updated via web interface")
-
-                        self.send_response(200)
-                        self.send_header('Content-type', 'application/json')
-                        self.end_headers()
-                        self.wfile.write(json.dumps({'success': True}).encode('utf-8'))
-                    else:
-                        self.send_response(404)
-                        self.end_headers()
-                except Exception as e:
-                    app.log(f"Error in POST handler: {e}")
-                    self.send_response(500)
-                    self.end_headers()
-
-        # Run server
-        try:
-            server = HTTPServer(('127.0.0.1', 9876), SettingsHandler)
-            app.log("Settings server started on http://127.0.0.1:9876")
-
-            # Serve requests for 5 minutes max
-            import time
-            start_time = time.time()
-            while time.time() - start_time < 300:  # 5 minutes
-                server.handle_request()
-
-            app.log("Settings server stopped (timeout)")
-        except Exception as e:
-            app.log(f"Error starting settings server: {e}")
-            import traceback
-            app.log(traceback.format_exc())
+        if os.path.exists(config_file):
+            # Show helpful dialog first
+            rumps.alert(
+                title="Opening Settings",
+                message="Edit the config file that opens.\n\nWhen you're done:\n1. Save the file (⌘S)\n2. Close the editor\n3. Restart Onion.Press from the menu bar\n\nYour changes will then take effect.",
+                ok="Open Config File"
+            )
+            subprocess.run(["open", "-t", config_file])
+            self.log("Opened config file in text editor")
+        else:
+            rumps.alert("Settings file not found")
 
     @rumps.clicked("Export Private Key...")
     def export_key(self, _):
