@@ -521,12 +521,12 @@
         <!-- Hit Counter -->
         <div id="hit-counter-container" style="text-align: center; margin: 60px 0;">
             <div class="hit-counter-display">
-                <span class="counter-digit" data-digit="0"><span class="digit-inner" style="opacity: 0; transition: opacity 0.3s;">0</span></span>
-                <span class="counter-digit" data-digit="0"><span class="digit-inner" style="opacity: 0; transition: opacity 0.3s;">0</span></span>
-                <span class="counter-digit" data-digit="0"><span class="digit-inner" style="opacity: 0; transition: opacity 0.3s;">0</span></span>
-                <span class="counter-digit" data-digit="0"><span class="digit-inner" style="opacity: 0; transition: opacity 0.3s;">0</span></span>
-                <span class="counter-digit" data-digit="0"><span class="digit-inner" style="opacity: 0; transition: opacity 0.3s;">0</span></span>
-                <span class="counter-digit" data-digit="0"><span class="digit-inner" style="opacity: 0; transition: opacity 0.3s;">0</span></span>
+                <span class="counter-digit" data-digit=""><span class="digit-inner"></span></span>
+                <span class="counter-digit" data-digit=""><span class="digit-inner"></span></span>
+                <span class="counter-digit" data-digit=""><span class="digit-inner"></span></span>
+                <span class="counter-digit" data-digit=""><span class="digit-inner"></span></span>
+                <span class="counter-digit" data-digit=""><span class="digit-inner"></span></span>
+                <span class="counter-digit" data-digit=""><span class="digit-inner"></span></span>
             </div>
             <div class="hit-counter-label">
                 <span style="font-size: 18px;">👁️</span>
@@ -551,7 +551,10 @@
                     if (currentDigit !== newDigit) {
                         const inner = elem.querySelector('.digit-inner');
 
-                        if (animate) {
+                        // Don't animate if current digit is empty (first load)
+                        const shouldAnimate = animate && currentDigit !== '';
+
+                        if (shouldAnimate) {
                             // Animate the change
                             elem.classList.add('spinning');
 
@@ -578,11 +581,6 @@
                         // Set initial display without animation
                         updateDisplay(data.formatted, false);
 
-                        // Show the digits now that they have the right value
-                        document.querySelectorAll('.digit-inner').forEach(el => {
-                            el.style.opacity = '1';
-                        });
-
                         // Now increment the counter
                         setTimeout(() => {
                             incrementCounter();
@@ -591,10 +589,7 @@
                 })
                 .catch(error => {
                     console.error('Hit counter init error:', error);
-                    // If init fails, just show and increment anyway
-                    document.querySelectorAll('.digit-inner').forEach(el => {
-                        el.style.opacity = '1';
-                    });
+                    // If init fails, just increment anyway
                     incrementCounter();
                 });
             }
