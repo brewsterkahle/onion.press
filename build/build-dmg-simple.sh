@@ -223,48 +223,55 @@ rm -rf "$TEMP_BIN_DIR"
 
 echo "Container runtime binaries installed successfully"
 
-# Build standalone Python app with py2app
-echo "Building standalone Python app (removing Python 3 dependency)..."
+# Build standalone MenubarApp using py2app
+# This bundles Python + all dependencies into a self-contained .app so
+# end users don't need Python/pip installed.
+echo ""
+echo "Building standalone MenubarApp with py2app..."
+SCRIPTS_DIR="$APP_PATH/Contents/Resources/scripts"
+MENUBAR_BUILD_DIR=$(mktemp -d)
+
+# Create a temporary venv for the py2app build (so we don't require
+# py2app or other deps to be installed globally on the build machine)
+python3 -m venv "$MENUBAR_BUILD_DIR/venv"
+"$MENUBAR_BUILD_DIR/venv/bin/pip" install --upgrade pip
+"$MENUBAR_BUILD_DIR/venv/bin/pip" install py2app
+"$MENUBAR_BUILD_DIR/venv/bin/pip" install -r "$SCRIPTS_DIR/requirements.txt"
+
+# Copy local modules into the build venv's site-packages so py2app can find them.
+# IMPORTANT: py2app does not reliably auto-detect local modules imported via
+# runtime sys.path manipulation. We copy them here AND list them in the
+# 'includes' option in setup.py as a belt-and-suspenders approach.
+# If you add a new local .py module imported by menubar.py, you must:
+#   1. Add it to the 'includes' list in setup.py
+#   2. Add a cp line here
+SITE_PACKAGES=$("$MENUBAR_BUILD_DIR/venv/bin/python3" -c "import site; print(site.getsitepackages()[0])")
+cp "$SCRIPTS_DIR/key_manager.py" "$SITE_PACKAGES/"
+cp "$SCRIPTS_DIR/bip39_words.py" "$SITE_PACKAGES/"
+
+# Run py2app build using the root setup.py
 cd "$PROJECT_DIR"
+"$MENUBAR_BUILD_DIR/venv/bin/python3" setup.py py2app \
+    --dist-dir "$MENUBAR_BUILD_DIR/dist" \
+    --bdist-base "$MENUBAR_BUILD_DIR/build" \
+    2>&1
 
-# Check if py2app is installed
-if ! python3 -c "import py2app" 2>/dev/null; then
-    echo "  ERROR: py2app not installed"
-    echo "  Run: python3 -m pip install --user --break-system-packages py2app pyobjc-core pyobjc-framework-Cocoa rumps"
-    exit 1
-fi
+# Install the built MenubarApp into the app bundle
+MENUBAR_APP_DIR="$APP_PATH/Contents/Resources/MenubarApp"
+rm -rf "$MENUBAR_APP_DIR"
+mv "$MENUBAR_BUILD_DIR/dist/menubar.app" "$MENUBAR_APP_DIR"
 
-# Build with py2app
-echo "  Building menubar app with py2app..."
-rm -rf py2app_build py2app_dist  # Clean previous builds
-python3 setup.py py2app --quiet 2>&1 | grep -v "DEPRECATION\|WARNING\|copying" || true
-
-if [ -d "py2app_dist/menubar.app" ]; then
-    echo "  ✓ Standalone app built successfully"
-
-    # Remove old MenubarApp if exists
-    MENUBAR_STANDALONE="$APP_PATH/Contents/Resources/MenubarApp"
-    rm -rf "$MENUBAR_STANDALONE"
-
-    # Copy the py2app bundle into our app
-    mkdir -p "$(dirname "$MENUBAR_STANDALONE")"
-    cp -R "py2app_dist/menubar.app" "$MENUBAR_STANDALONE"
-
-    # Remove .universal backups (keep only ARM64 slices to avoid Rosetta)
-    rm -f "$BIN_DIR"/*.universal
-
-    # Remove the old Python scripts (no longer needed)
-    rm -rf "$APP_PATH/Contents/Resources/scripts"
-
-    echo "  ✓ Standalone Python app installed (no Python 3 required)"
-
-    # Clean up build artifacts
-    rm -rf py2app_build py2app_dist
+# Verify key_manager was included
+if grep -rq "key_manager" "$MENUBAR_APP_DIR/Contents/Resources/" 2>/dev/null; then
+    echo "  key_manager: included"
 else
-    echo "  ERROR: py2app build failed"
-    exit 1
+    echo "  WARNING: key_manager may not be included in MenubarApp bundle!"
+    echo "  Check setup.py 'includes' list."
 fi
 
+cd "$PROJECT_DIR"
+rm -rf "$MENUBAR_BUILD_DIR"
+echo "Standalone MenubarApp built successfully"
 # Clean up old builds
 echo "Cleaning up old builds..."
 rm -f "$DMG_PATH"
@@ -292,7 +299,6 @@ INSTALLATION:
 
 REQUIREMENTS:
 - macOS 13.0 (Ventura) or later
-- Python 3 (built into macOS 12.3+)
 - Internet connection for first-time setup
 
 WHAT'S INCLUDED:

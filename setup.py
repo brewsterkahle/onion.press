@@ -33,7 +33,12 @@ OPTIONS = {
         'LSApplicationCategoryType': 'public.app-category.utilities',
     },
     'packages': ['rumps', 'objc', 'AppKit', 'mnemonic'],
-    'includes': ['subprocess', 'threading', 'os', 'time', 'json', 'key_manager'],
+    # CRITICAL: Local modules that menubar.py imports at runtime.
+    # py2app cannot auto-detect these because it runs menubar.py via exec(),
+    # not import. If you add a new local .py module, ADD IT HERE or the build
+    # will appear to succeed but the app will crash at launch with
+    # "ModuleNotFoundError".
+    'includes': ['subprocess', 'threading', 'os', 'time', 'json', 'key_manager', 'bip39_words'],
     'excludes': ['tkinter', 'test', 'unittest', 'urllib', 'urllib.request', 'urllib.error', 'http', 'http.client', 'http.server'],
     'arch': 'universal2',  # Build for both Intel and Apple Silicon
     'strip': True,  # Strip debug symbols to reduce size
