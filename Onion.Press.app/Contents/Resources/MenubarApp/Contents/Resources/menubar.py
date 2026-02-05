@@ -171,6 +171,7 @@ class OnionPressApp(rumps.App):
         self.auto_opened_browser = False  # Track if we've auto-opened browser this session
         self.setup_dialog_showing = False  # Track if setup dialog is currently showing
         self.monitoring_tor_install = False  # Track if we're monitoring for Tor Browser installation
+        self.caffeinate_process = None  # Process handle for caffeinate to prevent sleep
 
         # Menu items
         # Store reference to browser menu item so we can update its title
@@ -336,6 +337,54 @@ class OnionPressApp(rumps.App):
                 f.write(log_message)
         except Exception as e:
             print(f"Error writing to log: {e}")
+
+    def start_caffeinate(self):
+        """Start caffeinate to prevent Mac from sleeping while service runs"""
+        # Check if already running
+        if self.caffeinate_process is not None:
+            try:
+                # Check if process is still alive
+                if self.caffeinate_process.poll() is None:
+                    return  # Already running
+            except Exception:
+                pass
+
+        # Check config setting
+        prevent_sleep = self.read_config_value("PREVENT_SLEEP", "yes").lower()
+        if prevent_sleep != "yes":
+            self.log("Sleep prevention disabled in config")
+            return
+
+        try:
+            # Start caffeinate in background
+            # -d: prevent display sleep (optional, can be removed if you want display to sleep)
+            # -i: prevent system idle sleep
+            # -s: prevent system sleep when on AC power
+            self.caffeinate_process = subprocess.Popen(
+                ["caffeinate", "-i", "-s"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            self.log(f"Started caffeinate (PID {self.caffeinate_process.pid}) - Mac will stay awake while service runs")
+        except Exception as e:
+            self.log(f"Failed to start caffeinate: {e}")
+
+    def stop_caffeinate(self):
+        """Stop caffeinate to allow Mac to sleep normally"""
+        if self.caffeinate_process is not None:
+            try:
+                self.caffeinate_process.terminate()
+                self.caffeinate_process.wait(timeout=2)
+                self.log("Stopped caffeinate - Mac can sleep normally")
+            except Exception as e:
+                # Force kill if terminate doesn't work
+                try:
+                    self.caffeinate_process.kill()
+                    self.log("Force killed caffeinate process")
+                except Exception:
+                    pass
+            finally:
+                self.caffeinate_process = None
 
     def show_native_alert(self, title, message, buttons=["OK"], default_button=0, cancel_button=None, style="informational"):
         """Show a native macOS alert dialog using AppKit (no permission prompts, shows custom icon)
@@ -762,9 +811,7 @@ class OnionPressApp(rumps.App):
             wait_time = 120  # Wait 2 minutes after bootstrap for descriptor upload/propagation
 
             if time_since_bootstrap < wait_time:
-                remaining = int(wait_time - time_since_bootstrap)
-                if log_result:
-                    self.log(f"✗ Waiting for descriptor upload/propagation ({remaining}s remaining)")
+                # Still waiting - don't spam the log with countdown messages
                 return False
 
             # Check 4: Verify no critical errors in recent logs
@@ -861,10 +908,16 @@ class OnionPressApp(rumps.App):
                 elif ready_now:
                     # Already was ready, keep it ready
                     self.is_ready = True
+                    # Update last_status_logged to prevent repeated logging
+                    self.last_status_logged = current_status
 
                 # Start web log capture if not already running
                 if self.web_log_process is None:
                     threading.Thread(target=self.start_web_log_capture, daemon=True).start()
+
+                # Start caffeinate if not already running (prevents sleep while service runs)
+                if self.caffeinate_process is None or self.caffeinate_process.poll() is not None:
+                    self.start_caffeinate()
             else:
                 # Log when stopping
                 if self.is_running or self.is_ready:
@@ -881,6 +934,9 @@ class OnionPressApp(rumps.App):
                 # Stop web log capture if running
                 if self.web_log_process is not None:
                     self.stop_web_log_capture()
+
+                # Stop caffeinate to allow Mac to sleep
+                self.stop_caffeinate()
 
             # Update menu
             self.update_menu()
@@ -1260,6 +1316,9 @@ class OnionPressApp(rumps.App):
             time.sleep(2)
             self.check_status()
 
+            # Start caffeinate to prevent sleep while service runs
+            self.start_caffeinate()
+
         threading.Thread(target=start, daemon=True).start()
 
     @rumps.clicked("Stop")
@@ -1271,6 +1330,9 @@ class OnionPressApp(rumps.App):
             subprocess.run([self.launcher_script, "stop"])
             time.sleep(1)
             self.check_status()
+
+            # Stop caffeinate to allow Mac to sleep
+            self.stop_caffeinate()
 
         threading.Thread(target=stop, daemon=True).start()
 
@@ -1996,6 +2058,9 @@ GitHub: github.com/brewsterkahle/onion.press"""
                 self.log("Warning: Stop command timed out")
             except Exception as e:
                 self.log(f"Warning: Stop failed: {e}")
+
+            # Stop caffeinate to allow Mac to sleep
+            self.stop_caffeinate()
 
             try:
                 colima_bin = os.path.join(self.bin_dir, "colima")

@@ -58,3 +58,18 @@ UPDATE_ON_LAUNCH=no
 # Note: You can also manage this in System Settings → General → Login Items
 #
 LAUNCH_ON_LOGIN=no
+
+# Prevent Mac Sleep While Running
+# Default: "yes" (keeps Mac awake while service is running)
+#
+# When enabled, Onion.Press will prevent your Mac from sleeping while the
+# WordPress + Tor service is running. This ensures your .onion site remains
+# accessible 24/7 without interruption.
+#
+# Uses the built-in 'caffeinate' command to prevent system sleep.
+# Display can still sleep, only system sleep is prevented.
+#
+# Set to "no" to allow your Mac to sleep (your site will go offline when asleep).
+# Note: Does not prevent sleep when service is stopped.
+#
+PREVENT_SLEEP=yes
