@@ -996,11 +996,12 @@ class OnionPressApp(rumps.App):
                 input=self.onion_address.encode(),
                 check=True
             )
-            rumps.notification(
-                title="Onion.Press",
-                subtitle="Address Copied",
-                message=f"Copied {self.onion_address} to clipboard"
-            )
+            # Notification disabled
+            # rumps.notification(
+            #     title="Onion.Press",
+            #     subtitle="Address Copied",
+            #     message=f"Copied {self.onion_address} to clipboard"
+            # )
         else:
             rumps.alert("Onion address not available yet. Please wait for the service to start.")
 
@@ -1158,12 +1159,12 @@ class OnionPressApp(rumps.App):
                 brave_executable = os.path.join(brave_browser_path, "Contents", "MacOS", "Brave Browser")
                 subprocess.run([brave_executable, "--tor", url])
                 self.log(f"Opened {url} in Brave Browser (Tor mode)")
-                # Show notification to let user know Brave is being used
-                rumps.notification(
-                    title="Onion.Press",
-                    subtitle="Opening in Brave Browser",
-                    message="Opening in Private Window with Tor"
-                )
+                # Notification disabled
+                # rumps.notification(
+                #     title="Onion.Press",
+                #     subtitle="Opening in Brave Browser",
+                #     message="Opening in Private Window with Tor"
+                # )
             else:
                 # Neither browser is installed - offer download options
                 response = rumps.alert(
@@ -1200,12 +1201,12 @@ class OnionPressApp(rumps.App):
                 self.log(f"Auto-opening Brave Browser (Tor mode): {url}")
                 brave_executable = os.path.join(brave_browser_path, "Contents", "MacOS", "Brave Browser")
                 subprocess.run([brave_executable, "--tor", url])
-                # Show notification to let user know Brave is being used
-                rumps.notification(
-                    title="Onion.Press",
-                    subtitle="Opening in Brave Browser",
-                    message="Opening in Private Window with Tor"
-                )
+                # Notification disabled
+                # rumps.notification(
+                #     title="Onion.Press",
+                #     subtitle="Opening in Brave Browser",
+                #     message="Opening in Private Window with Tor"
+                # )
             else:
                 self.log("Neither Tor Browser nor Brave Browser installed - showing download dialog")
                 # Dismiss setup dialog and launch splash before showing browser download dialog
@@ -1619,11 +1620,12 @@ DO NOT share these words with anyone."""
         try:
             if show_notifications:
                 self.log("Checking for Docker image updates...")
-                rumps.notification(
-                    title="Onion.Press",
-                    subtitle="Checking for Updates",
-                    message="Checking for updated container images..."
-                )
+                # Notification disabled
+                # rumps.notification(
+                #     title="Onion.Press",
+                #     subtitle="Checking for Updates",
+                #     message="Checking for updated container images..."
+                # )
 
             docker_bin = os.path.join(self.bin_dir, "docker")
             docker_compose_file = os.path.join(self.parent_resources_dir, "docker", "docker-compose.yml")
@@ -1651,38 +1653,46 @@ DO NOT share these words with anyone."""
                 # Check if any images were actually updated by comparing output
                 if "Downloaded" in result.stdout or "Pulled" in result.stdout:
                     if show_notifications:
-                        rumps.notification(
-                            title="Onion.Press",
-                            subtitle="Updates Downloaded",
-                            message="Container images updated. Restart the service to apply updates."
-                        )
+                        # Notification disabled
+                        # rumps.notification(
+                        #     title="Onion.Press",
+                        #     subtitle="Updates Downloaded",
+                        #     message="Container images updated. Restart the service to apply updates."
+                        # )
+                        pass
                     return True
                 else:
                     if show_notifications:
-                        rumps.notification(
-                            title="Onion.Press",
-                            subtitle="Already Up to Date",
-                            message="All container images are current."
-                        )
+                        # Notification disabled
+                        # rumps.notification(
+                        #     title="Onion.Press",
+                        #     subtitle="Already Up to Date",
+                        #     message="All container images are current."
+                        # )
+                        pass
                     return False
             else:
                 self.log(f"Failed to update Docker images: {result.stderr}")
                 if show_notifications:
-                    rumps.notification(
-                        title="Onion.Press",
-                        subtitle="Update Failed",
-                        message="Could not update container images. Check logs for details."
-                    )
+                    # Notification disabled
+                    # rumps.notification(
+                    #     title="Onion.Press",
+                    #     subtitle="Update Failed",
+                    #     message="Could not update container images. Check logs for details."
+                    # )
+                    pass
                 return False
 
         except Exception as e:
             self.log(f"Error updating Docker images: {e}")
             if show_notifications:
-                rumps.notification(
-                    title="Onion.Press",
-                    subtitle="Update Error",
-                    message=f"Error updating containers: {str(e)}"
-                )
+                # Notification disabled
+                # rumps.notification(
+                #     title="Onion.Press",
+                #     subtitle="Update Error",
+                #     message=f"Error updating containers: {str(e)}"
+                # )
+                pass
             return False
 
     @rumps.clicked("Check for Updates...")
@@ -1742,16 +1752,8 @@ DO NOT share these words with anyone."""
 
     def show_notification(self, message, subtitle=""):
         """Show a macOS notification (thread-safe via main queue dispatch)"""
-        def _notify():
-            try:
-                rumps.notification(
-                    title="Onion.Press Setup",
-                    subtitle=subtitle,
-                    message=message
-                )
-            except Exception:
-                pass
-        AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(_notify)
+        # Notifications disabled - no-op
+        pass
 
     def show_setup_dialog(self):
         """Show a persistent setup dialog during first run that stays until service is ready"""
