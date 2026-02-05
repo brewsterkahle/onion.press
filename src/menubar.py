@@ -213,9 +213,9 @@ class OnionPressApp(rumps.App):
         """Show non-blocking launch splash with logo - no I/O blocking"""
         def show():
             try:
-                # Create window (no I/O) - taller for better spacing, no close button
+                # Create window (no I/O) - taller for buttons and time estimate
                 window = AppKit.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-                    AppKit.NSMakeRect(0, 0, 300, 250),
+                    AppKit.NSMakeRect(0, 0, 320, 300),
                     AppKit.NSWindowStyleMaskTitled,  # No close button - dismisses automatically when ready
                     AppKit.NSBackingStoreBuffered,
                     False
@@ -227,10 +227,10 @@ class OnionPressApp(rumps.App):
                 window.setHidesOnDeactivate_(False)  # Stay visible when clicking other windows
 
                 # Create content view
-                content_view = AppKit.NSView.alloc().initWithFrame_(AppKit.NSMakeRect(0, 0, 300, 250))
+                content_view = AppKit.NSView.alloc().initWithFrame_(AppKit.NSMakeRect(0, 0, 320, 300))
 
-                # Add "Launching..." text (no I/O) - moved down
-                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(50, 80, 200, 30))
+                # Add "Launching..." text (no I/O)
+                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(60, 120, 200, 30))
                 text_field.setStringValue_("Launching Onion.Press...")
                 text_field.setBezeled_(False)
                 text_field.setDrawsBackground_(False)
@@ -241,12 +241,40 @@ class OnionPressApp(rumps.App):
                 text_field.setFont_(font)
                 content_view.addSubview_(text_field)
 
-                # View Log button removed for now - was causing splash to not appear
+                # Add estimated time text
+                time_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(40, 90, 240, 20))
+                time_field.setStringValue_("Estimated time: ~3 minutes")
+                time_field.setBezeled_(False)
+                time_field.setDrawsBackground_(False)
+                time_field.setEditable_(False)
+                time_field.setSelectable_(False)
+                time_field.setAlignment_(AppKit.NSTextAlignmentCenter)
+                time_field.setTextColor_(AppKit.NSColor.secondaryLabelColor())
+                small_font = AppKit.NSFont.systemFontOfSize_(12)
+                time_field.setFont_(small_font)
+                content_view.addSubview_(time_field)
+
+                # Add View Log button
+                view_log_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(20, 20, 130, 32))
+                view_log_button.setTitle_("View Log")
+                view_log_button.setBezelStyle_(AppKit.NSBezelStyleRounded)
+                view_log_button.setTarget_(self)
+                view_log_button.setAction_("openLogFile:")
+                content_view.addSubview_(view_log_button)
+
+                # Add Dismiss button
+                dismiss_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(170, 20, 130, 32))
+                dismiss_button.setTitle_("Dismiss")
+                dismiss_button.setBezelStyle_(AppKit.NSBezelStyleRounded)
+                dismiss_button.setTarget_(self)
+                dismiss_button.setAction_("dismissSplashButton:")
+                content_view.addSubview_(dismiss_button)
 
                 window.setContentView_(content_view)
                 window.makeKeyAndOrderFront_(None)
 
                 self.launch_splash = window
+                self.launch_splash_time_field = time_field  # Store reference for updates
 
                 # Log splash creation
                 try:
@@ -255,11 +283,11 @@ class OnionPressApp(rumps.App):
                 except Exception:
                     pass
 
-                # Add logo in background (I/O happens after window shows) - moved to top
+                # Add logo in background (I/O happens after window shows)
                 def add_logo():
                     icon_path = os.path.join(self.resources_dir, "app-icon.png")
                     if os.path.exists(icon_path):
-                        image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(100, 140, 100, 100))
+                        image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(110, 180, 100, 100))
                         image = AppKit.NSImage.alloc().initWithContentsOfFile_(icon_path)
                         if image:
                             image_view.setImage_(image)
@@ -286,6 +314,17 @@ class OnionPressApp(rumps.App):
 
         # Dismiss on main thread
         AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(dismiss)
+
+    def openLogFile_(self, sender):
+        """Action handler for View Log button"""
+        try:
+            subprocess.run(["open", self.log_file], check=False)
+        except Exception as e:
+            self.log(f"Error opening log file: {e}")
+
+    def dismissSplashButton_(self, sender):
+        """Action handler for Dismiss button"""
+        self.dismiss_launch_splash()
 
     def log(self, message):
         """Write log message to onion.press.log file"""

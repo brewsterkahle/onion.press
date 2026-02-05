@@ -1,5 +1,0 @@
-# Enable SOCKS proxy for testing .onion accessibility
-SocksPort 9050
-
-# Enable info-level logging to see descriptor uploads
-Log info stdout

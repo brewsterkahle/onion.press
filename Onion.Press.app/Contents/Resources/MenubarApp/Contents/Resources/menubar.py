@@ -213,9 +213,9 @@ class OnionPressApp(rumps.App):
         """Show non-blocking launch splash with logo - no I/O blocking"""
         def show():
             try:
-                # Create window (no I/O) - taller for better spacing, no close button
+                # Create window (no I/O) - taller for buttons and time estimate
                 window = AppKit.NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-                    AppKit.NSMakeRect(0, 0, 300, 250),
+                    AppKit.NSMakeRect(0, 0, 320, 300),
                     AppKit.NSWindowStyleMaskTitled,  # No close button - dismisses automatically when ready
                     AppKit.NSBackingStoreBuffered,
                     False
@@ -227,10 +227,10 @@ class OnionPressApp(rumps.App):
                 window.setHidesOnDeactivate_(False)  # Stay visible when clicking other windows
 
                 # Create content view
-                content_view = AppKit.NSView.alloc().initWithFrame_(AppKit.NSMakeRect(0, 0, 300, 250))
+                content_view = AppKit.NSView.alloc().initWithFrame_(AppKit.NSMakeRect(0, 0, 320, 300))
 
-                # Add "Launching..." text (no I/O) - moved down
-                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(50, 80, 200, 30))
+                # Add "Launching..." text (no I/O)
+                text_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(60, 120, 200, 30))
                 text_field.setStringValue_("Launching Onion.Press...")
                 text_field.setBezeled_(False)
                 text_field.setDrawsBackground_(False)
@@ -241,12 +241,40 @@ class OnionPressApp(rumps.App):
                 text_field.setFont_(font)
                 content_view.addSubview_(text_field)
 
-                # View Log button removed for now - was causing splash to not appear
+                # Add estimated time text
+                time_field = AppKit.NSTextField.alloc().initWithFrame_(AppKit.NSMakeRect(40, 90, 240, 20))
+                time_field.setStringValue_("Estimated time: ~3 minutes")
+                time_field.setBezeled_(False)
+                time_field.setDrawsBackground_(False)
+                time_field.setEditable_(False)
+                time_field.setSelectable_(False)
+                time_field.setAlignment_(AppKit.NSTextAlignmentCenter)
+                time_field.setTextColor_(AppKit.NSColor.secondaryLabelColor())
+                small_font = AppKit.NSFont.systemFontOfSize_(12)
+                time_field.setFont_(small_font)
+                content_view.addSubview_(time_field)
+
+                # Add View Log button
+                view_log_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(20, 20, 130, 32))
+                view_log_button.setTitle_("View Log")
+                view_log_button.setBezelStyle_(AppKit.NSBezelStyleRounded)
+                view_log_button.setTarget_(self)
+                view_log_button.setAction_("openLogFile:")
+                content_view.addSubview_(view_log_button)
+
+                # Add Dismiss button
+                dismiss_button = AppKit.NSButton.alloc().initWithFrame_(AppKit.NSMakeRect(170, 20, 130, 32))
+                dismiss_button.setTitle_("Dismiss")
+                dismiss_button.setBezelStyle_(AppKit.NSBezelStyleRounded)
+                dismiss_button.setTarget_(self)
+                dismiss_button.setAction_("dismissSplashButton:")
+                content_view.addSubview_(dismiss_button)
 
                 window.setContentView_(content_view)
                 window.makeKeyAndOrderFront_(None)
 
                 self.launch_splash = window
+                self.launch_splash_time_field = time_field  # Store reference for updates
 
                 # Log splash creation
                 try:
@@ -255,11 +283,11 @@ class OnionPressApp(rumps.App):
                 except Exception:
                     pass
 
-                # Add logo in background (I/O happens after window shows) - moved to top
+                # Add logo in background (I/O happens after window shows)
                 def add_logo():
                     icon_path = os.path.join(self.resources_dir, "app-icon.png")
                     if os.path.exists(icon_path):
-                        image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(100, 140, 100, 100))
+                        image_view = AppKit.NSImageView.alloc().initWithFrame_(AppKit.NSMakeRect(110, 180, 100, 100))
                         image = AppKit.NSImage.alloc().initWithContentsOfFile_(icon_path)
                         if image:
                             image_view.setImage_(image)
@@ -286,6 +314,17 @@ class OnionPressApp(rumps.App):
 
         # Dismiss on main thread
         AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(dismiss)
+
+    def openLogFile_(self, sender):
+        """Action handler for View Log button"""
+        try:
+            subprocess.run(["open", self.log_file], check=False)
+        except Exception as e:
+            self.log(f"Error opening log file: {e}")
+
+    def dismissSplashButton_(self, sender):
+        """Action handler for Dismiss button"""
+        self.dismiss_launch_splash()
 
     def log(self, message):
         """Write log message to onion.press.log file"""
@@ -708,54 +747,40 @@ class OnionPressApp(rumps.App):
                     self.log(f"✗ Tor not fully bootstrapped yet")
                 return False
 
-            # Check 3: Test actual .onion accessibility through Tor SOCKS proxy
-            # This is the definitive test - if we can reach the site through Tor, it's ready
-            if log_result:
-                self.log(f"Testing .onion accessibility through Tor proxy...")
+            # Check 3: Wait for descriptor upload and propagation
+            # After Tor reaches 100%, it needs time to upload the descriptor and propagate it
+            # This typically takes 90-180 seconds
 
-            try:
-                curl_result = subprocess.run(
-                    ["curl", "-s", "--max-time", "15", "--socks5-hostname", "localhost:9050",
-                     f"http://{self.onion_address}"],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    timeout=20
-                )
+            # Track when we first saw bootstrap 100%
+            if not hasattr(self, '_bootstrap_complete_time'):
+                self._bootstrap_complete_time = time.time()
+                if log_result:
+                    self.log(f"Tor bootstrapped - waiting for descriptor upload and propagation...")
 
-                if curl_result.returncode == 0:
-                    # Got a response - check if it's valid WordPress content
-                    content = curl_result.stdout
-                    if len(content) > 100 and ('wp-' in content or 'wordpress' in content.lower() or '<html' in content.lower()):
-                        if log_result:
-                            self.log(f"✓ .onion site is accessible through Tor!")
-                    else:
-                        if log_result:
-                            self.log(f"✗ Got response but content looks unexpected (may still be starting)")
-                        return False
-                else:
-                    if log_result:
-                        self.log(f"✗ Cannot reach .onion address through Tor yet (descriptor may not be uploaded)")
-                    return False
-            except subprocess.TimeoutExpired:
+            # Calculate time since bootstrap complete
+            time_since_bootstrap = time.time() - self._bootstrap_complete_time
+            wait_time = 120  # Wait 2 minutes after bootstrap for descriptor upload/propagation
+
+            if time_since_bootstrap < wait_time:
+                remaining = int(wait_time - time_since_bootstrap)
                 if log_result:
-                    self.log(f"✗ Timeout trying to reach .onion address (descriptor may not be uploaded)")
-                return False
-            except Exception as e:
-                if log_result:
-                    self.log(f"✗ Error testing .onion accessibility: {str(e)}")
+                    self.log(f"✗ Waiting for descriptor upload/propagation ({remaining}s remaining)")
                 return False
 
             # Check 4: Verify no critical errors in recent logs
             if "ERROR" in result.stdout or "failed to publish" in result.stdout.lower():
                 if log_result:
-                    self.log(f"⚠ Tor errors detected in logs (but site is accessible)")
-                # Don't fail - if the site is accessible, it's working
+                    self.log(f"✗ Tor errors detected in logs")
+                return False
 
-            # All checks passed - site is confirmed accessible through Tor
+            # All checks passed - enough time has elapsed for descriptor to be uploaded
             if log_result:
-                self.log(f"✓ All checks passed - {self.onion_address} is fully operational!")
+                self.log(f"✓ All checks passed - {self.onion_address} should be accessible!")
+
+            # Clear the bootstrap time tracker so it resets if Tor restarts
+            if hasattr(self, '_bootstrap_complete_time'):
+                delattr(self, '_bootstrap_complete_time')
+
             return True
 
         except Exception as e:
