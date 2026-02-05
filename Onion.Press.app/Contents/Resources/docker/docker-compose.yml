@@ -14,6 +14,8 @@ services:
     restart: unless-stopped
     networks:
       - onionpress-network
+    ports:
+      - "127.0.0.1:9050:9050"
 
   wordpress:
     image: wordpress:6.7
