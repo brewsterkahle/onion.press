@@ -62,14 +62,22 @@ else
     echo "  Warning: hit counter plugin not found, skipping"
 fi
 
-echo "Step 5: Initializing hit counter..."
-if [ -f "$PRODUCT_WEBSITE_DIR/content/onionpress-data/hit-counter.txt" ]; then
-    docker cp "$PRODUCT_WEBSITE_DIR/content/onionpress-data/hit-counter.txt" onionpress-wordpress:/var/lib/onionpress/hit-counter.txt
-    docker exec onionpress-wordpress chown www-data:www-data /var/lib/onionpress/hit-counter.txt
-    docker exec onionpress-wordpress chmod 644 /var/lib/onionpress/hit-counter.txt
+echo "Step 5: Checking hit counter..."
+# Check if counter already exists in container (preserve existing counter on re-deploy)
+if docker exec onionpress-wordpress test -f /var/lib/onionpress/hit-counter.txt 2>/dev/null; then
+    CURRENT_COUNT=$(docker exec onionpress-wordpress cat /var/lib/onionpress/hit-counter.txt 2>/dev/null || echo "0")
+    echo "  Preserving existing counter: $CURRENT_COUNT"
 else
-    echo "  Initializing with default count of 42..."
-    docker exec onionpress-wordpress sh -c 'echo "42" > /var/lib/onionpress/hit-counter.txt && chown www-data:www-data /var/lib/onionpress/hit-counter.txt && chmod 644 /var/lib/onionpress/hit-counter.txt'
+    # Only initialize counter on first deploy
+    if [ -f "$PRODUCT_WEBSITE_DIR/content/onionpress-data/hit-counter.txt" ]; then
+        echo "  Initializing from saved counter..."
+        docker cp "$PRODUCT_WEBSITE_DIR/content/onionpress-data/hit-counter.txt" onionpress-wordpress:/var/lib/onionpress/hit-counter.txt
+        docker exec onionpress-wordpress chown www-data:www-data /var/lib/onionpress/hit-counter.txt
+        docker exec onionpress-wordpress chmod 644 /var/lib/onionpress/hit-counter.txt
+    else
+        echo "  Initializing with default count of 42..."
+        docker exec onionpress-wordpress sh -c 'echo "42" > /var/lib/onionpress/hit-counter.txt && chown www-data:www-data /var/lib/onionpress/hit-counter.txt && chmod 644 /var/lib/onionpress/hit-counter.txt'
+    fi
 fi
 
 echo
