@@ -21,6 +21,15 @@ sys.path.insert(0, script_dir)
 
 import key_manager
 
+
+def parse_version(version_str):
+    """Parse a version string like '2.10.3' into a tuple of ints for comparison."""
+    try:
+        return tuple(int(x) for x in version_str.split('.'))
+    except (ValueError, AttributeError):
+        return (0,)
+
+
 class OnionPressApp(rumps.App):
     def __init__(self):
         # Get paths first (fast - no I/O)
@@ -130,12 +139,12 @@ class OnionPressApp(rumps.App):
             if os.path.isfile(bundled_compose) and not os.path.exists(compose_plugin_dest):
                 try:
                     os.symlink(bundled_compose, compose_plugin_dest)
-                except:
+                except Exception:
                     pass
             elif os.path.islink(system_compose) and not os.path.exists(compose_plugin_dest):
                 try:
                     os.symlink(system_compose, compose_plugin_dest)
-                except:
+                except Exception:
                     pass
 
             # Get actual version from Info.plist
@@ -155,6 +164,7 @@ class OnionPressApp(rumps.App):
         self.is_running = False
         self.is_ready = False  # WordPress is ready to serve requests
         self.checking = False
+        self._checking_lock = threading.Lock()  # Protect self.checking from race conditions
         self.web_log_process = None  # Background process for web logs
         self.web_log_file_handle = None  # File handle for web log capture
         self.last_status_logged = None  # Track last logged status to avoid spam
@@ -242,7 +252,7 @@ class OnionPressApp(rumps.App):
                 try:
                     with open(self.log_file, 'a') as f:
                         f.write(f"DEBUG: Launch splash created and shown\n")
-                except:
+                except Exception:
                     pass
 
                 # Add logo in background (I/O happens after window shows) - moved to top
@@ -371,7 +381,7 @@ class OnionPressApp(rumps.App):
             result = subprocess.run(["sw_vers", "-productVersion"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
             macos_version = result.stdout.strip() if result.returncode == 0 else "Unknown"
             self.log(f"macOS version: {macos_version}")
-        except:
+        except Exception:
             pass
 
         # Colima version
@@ -381,7 +391,7 @@ class OnionPressApp(rumps.App):
                 result = subprocess.run([colima_bin, "version"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
                 colima_version = result.stdout.strip().split('\n')[0] if result.returncode == 0 else "Unknown"
                 self.log(f"Colima version: {colima_version}")
-        except:
+        except Exception:
             pass
 
         # Docker version
@@ -391,7 +401,7 @@ class OnionPressApp(rumps.App):
                 result = subprocess.run([docker_bin, "--version"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
                 docker_version = result.stdout.strip() if result.returncode == 0 else "Unknown"
                 self.log(f"Docker version: {docker_version}")
-        except:
+        except Exception:
             pass
 
         # Docker Compose version
@@ -401,7 +411,7 @@ class OnionPressApp(rumps.App):
                 result = subprocess.run([compose_bin, "version"], capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=5)
                 compose_version = result.stdout.strip().split('\n')[0] if result.returncode == 0 else "Unknown"
                 self.log(f"Docker Compose version: {compose_version}")
-        except:
+        except Exception:
             pass
 
         self.log("=" * 60)
@@ -451,17 +461,17 @@ class OnionPressApp(rumps.App):
             try:
                 self.web_log_process.terminate()
                 self.web_log_process.wait(timeout=5)
-            except:
+            except Exception:
                 try:
                     self.web_log_process.kill()
-                except:
+                except Exception:
                     pass
             self.web_log_process = None
             # Close the log file handle to avoid leaking it
             if hasattr(self, 'web_log_file_handle') and self.web_log_file_handle:
                 try:
                     self.web_log_file_handle.close()
-                except:
+                except Exception:
                     pass
                 self.web_log_file_handle = None
             print("Stopped web log capture")
@@ -518,7 +528,7 @@ class OnionPressApp(rumps.App):
                     if result.returncode == 0:
                         self.log("Container runtime is ready")
                         break
-                except:
+                except Exception:
                     pass
 
             time.sleep(3)
@@ -538,7 +548,7 @@ class OnionPressApp(rumps.App):
                             value = line.split('=', 1)[1].strip().lower()
                             update_on_launch = (value == 'yes')
                             break
-            except:
+            except Exception:
                 pass
 
         if update_on_launch:
@@ -700,19 +710,22 @@ class OnionPressApp(rumps.App):
 
             # Check 3: Verify hidden service descriptor has been uploaded
             # This is critical - Tor can be bootstrapped but the HS descriptor might not be published yet
+            # With info-level logging enabled, we can see descriptor upload messages
             # Look for various descriptor-related messages that indicate the service is published
             descriptor_uploaded = (
                 "Uploaded rendezvous descriptor" in result.stdout or
                 "Uploading descriptor" in result.stdout or
                 "Uploaded v3 onion service descriptor" in result.stdout or
                 "Publishing v3 onion service descriptor" in result.stdout or
-                "HS DESC UPLOADED" in result.stdout
+                "HS DESC UPLOADED" in result.stdout or
+                "Uploading hidden service descriptor" in result.stdout or
+                "Hidden service descriptor successfully uploaded" in result.stdout
             )
+
             if not descriptor_uploaded:
                 if log_result:
-                    self.log(f"✗ Hidden service descriptor not found in logs (might be uploaded earlier)")
-                # Don't fail immediately - continue to other checks
-                # The descriptor may have been uploaded earlier and rotated out of the log buffer
+                    self.log(f"✗ Hidden service descriptor not uploaded yet")
+                return False
 
             # Check 4: Verify no critical errors in recent logs
             if "ERROR" in result.stdout or "failed to publish" in result.stdout.lower():
@@ -720,44 +733,9 @@ class OnionPressApp(rumps.App):
                     self.log(f"✗ Tor errors detected in logs")
                 return False
 
-            # Check 5: Actually test the .onion address through Tor SOCKS proxy
-            # This is the definitive test - if we can reach the site through Tor, it's working
+            # All checks passed - descriptor is uploaded and service should be accessible
             if log_result:
-                self.log(f"Testing actual .onion accessibility through Tor: http://{self.onion_address}")
-
-            try:
-                curl_result = subprocess.run(
-                    ["curl", "-s", "--max-time", "10", "--socks5-hostname", "localhost:9050",
-                     f"http://{self.onion_address}"],
-                    capture_output=True,
-                    text=True,
-                    encoding='utf-8',
-                    errors='replace',
-                    timeout=15
-                )
-
-                if curl_result.returncode == 0:
-                    # Got a response - check if it's valid WordPress content
-                    content = curl_result.stdout
-                    if len(content) > 0 and ('wp-' in content or 'wordpress' in content.lower() or '<html' in content.lower()):
-                        if log_result:
-                            self.log(f"✓ .onion site is accessible through Tor!")
-                    else:
-                        if log_result:
-                            self.log(f"⚠ Got response but content looks unexpected (may still be starting)")
-                        return False
-                else:
-                    if log_result:
-                        self.log(f"✗ Cannot reach .onion address through Tor (curl exit code {curl_result.returncode})")
-                    return False
-            except Exception as e:
-                if log_result:
-                    self.log(f"✗ Error testing .onion accessibility: {str(e)}")
-                return False
-
-            # All checks passed - onion service is confirmed accessible
-            if log_result:
-                self.log(f"✓ All checks passed - {self.onion_address} is fully operational!")
+                self.log(f"✓ Hidden service descriptor uploaded - {self.onion_address} is ready!")
             return True
 
         except Exception as e:
@@ -767,10 +745,11 @@ class OnionPressApp(rumps.App):
 
     def check_status(self):
         """Check if containers are running and get onion address"""
-        if self.checking:
-            return
+        with self._checking_lock:
+            if self.checking:
+                return
+            self.checking = True
 
-        self.checking = True
         try:
             # Check if containers are running
             status_json = self.run_command("status")
@@ -781,7 +760,7 @@ class OnionPressApp(rumps.App):
                     self.is_running = len(status) > 0 and all(
                         s.get("State", "").lower() == "running" for s in status
                     )
-                except:
+                except Exception:
                     self.is_running = False
             else:
                 self.is_running = False
@@ -1184,7 +1163,7 @@ class OnionPressApp(rumps.App):
                         self.log(f"Failed to open Console.app: {e}")
                     # Show persistent setup dialog
                     self.show_setup_dialog()
-            except:
+            except Exception:
                 pass
 
             # Start the service
@@ -1303,7 +1282,7 @@ class OnionPressApp(rumps.App):
             with open(self.info_plist, 'rb') as f:
                 plist = plistlib.load(f)
                 return plist.get('CFBundleShortVersionString', 'Unknown')
-        except:
+        except Exception:
             return 'Unknown'
 
     def read_config_value(self, key, default=""):
@@ -1317,7 +1296,7 @@ class OnionPressApp(rumps.App):
                     line = line.strip()
                     if line.startswith(f"{key}="):
                         return line.split('=', 1)[1]
-        except:
+        except Exception:
             pass
         return default
 
@@ -1445,6 +1424,9 @@ DO NOT share these words with anyone."""
                 title="Private Key Backup",
                 message=message
             )
+
+            # Clear clipboard after user dismisses dialog (security: don't leave mnemonic in clipboard)
+            subprocess.run(["pbcopy"], input=b"", check=False)
 
         except Exception as e:
             rumps.alert(
@@ -1619,7 +1601,7 @@ DO NOT share these words with anyone."""
                 latest_version = data.get('tag_name', '').lstrip('v')
                 current_version = self.version
 
-                if latest_version and latest_version > current_version:
+                if latest_version and parse_version(latest_version) > parse_version(current_version):
                     app_update_available = True
                     response = rumps.alert(
                         title="App Update Available",
@@ -1662,7 +1644,7 @@ DO NOT share these words with anyone."""
                     subtitle=subtitle,
                     message=message
                 )
-            except:
+            except Exception:
                 pass
         AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(_notify)
 
@@ -1707,7 +1689,7 @@ DO NOT share these words with anyone."""
             try:
                 self.show_notification("Setting up onion.press for first use...",
                                      "Console.app opened to show progress. Downloading images (2-5 min)")
-            except:
+            except Exception:
                 pass
 
     def dismiss_setup_dialog(self):
