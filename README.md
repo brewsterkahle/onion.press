@@ -27,8 +27,7 @@ onion.press is a macOS application that bundles WordPress with a Tor onion servi
 ## Requirements
 
 - macOS 13.0 (Ventura) or later
-- Python 3 (pre-installed on macOS 12.3+, or install from [python.org](https://www.python.org/downloads/))
-- Internet connection for first-time setup
+- Internet connection
 
 ## Installation
 
@@ -36,7 +35,7 @@ onion.press is a macOS application that bundles WordPress with a Tor onion servi
 2. Open the DMG and drag `Onion.Press.app` to your Applications folder
 3. Launch Onion.Press from Applications
 4. On first launch:
-   - The app will generate your vanity onion address (starting with "op2") - takes < 1 second
+   - The app will generate your onion address (starting with "op2") - takes < 1 second
    - The app will initialize its bundled container runtime (Colima) - takes ~2-3 minutes
    - It will download WordPress, MariaDB, and Tor container images (~1GB)
    - Total 1-time setup: 3-5 minutes depending on your internet connection
