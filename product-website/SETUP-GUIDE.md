@@ -83,7 +83,7 @@ Create these pages in WordPress (Pages → Add New):
 
   <div class="feature-box">
     <h3>🆓 Forever Free</h3>
-    <p>No hosting fees. No monthly charges. Open source software.</p>
+    <p>No hosting fees. No monthly charges. Free and Open source software.</p>
   </div>
 
   <div class="feature-box">
