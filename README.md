@@ -1,5 +1,7 @@
 <div align="center">
   <img src="logo.png" alt="onion.press logo" width="400">
+
+  **[Product Page](https://brewsterkahle.github.io/onion.press/)**
 </div>
 
 # Onion.Press
