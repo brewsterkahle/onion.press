@@ -539,6 +539,7 @@ main() {
             ;;
 
         stop)
+            setup_db_passwords
             stop_containers
             ;;
 
