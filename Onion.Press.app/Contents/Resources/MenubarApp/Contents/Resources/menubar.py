@@ -1156,6 +1156,9 @@ class OnionPressApp(rumps.App):
 
     def auto_open_browser(self):
         """Automatically open Tor Browser or Brave Browser when service becomes ready"""
+        # Wait for Tor circuits to stabilize before opening browser
+        self.log("Waiting 10s for Tor circuits to stabilize before opening browser...")
+        time.sleep(10)
         if self.onion_address and self.onion_address not in ["Starting...", "Not running", "Generating address..."]:
             tor_browser_path = "/Applications/Tor Browser.app"
             brave_browser_path = "/Applications/Brave Browser.app"
